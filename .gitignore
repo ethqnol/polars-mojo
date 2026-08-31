@@ -1,0 +1,19 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# Cargo build artifacts
+target/
+**/*.rs.bk
+
+# Mojo build artifacts
+bin/
+*.mojoc
+*.mojopkg
+
+# Scratch files and temporary data
+scratch/
+
+# Agent metadata
+.agents/
+
