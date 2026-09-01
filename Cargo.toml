@@ -1,0 +1,12 @@
+[package]
+name = "polars_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "polars_ffi"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+polars = { version = "0.46", default-features = false, features = ["csv", "parquet", "lazy", "sql"] }
+polars-arrow = "0.46"
