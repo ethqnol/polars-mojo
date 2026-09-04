@@ -850,7 +850,7 @@ def generate_html(docs_data: dict) -> str:
       container.querySelectorAll('pre').forEach((pre) => {{
         const code = pre.querySelector('code');
         const lang = code ? (code.className.match(/language-([\\w-]+)/) || ['','mojo'])[1] : 'code';
-        
+
         const wrapper = document.createElement('div');
         wrapper.className = 'code-container';
 

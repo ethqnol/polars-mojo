@@ -46,7 +46,7 @@ Arrow format strings (`ArrowSchema.format`) map to Mojo types as follows:
 
 ## SIMD Vectorization
 
-`Series` aggregations (`sum_float64`, `sum_int64`, `mean_float64`) access the column's contiguous memory buffer via `as_float64_ptr()` / `as_int64_ptr()`. 
+`Series` aggregations (`sum_float64`, `sum_int64`, `mean_float64`) access the column's contiguous memory buffer via `as_float64_ptr()` / `as_int64_ptr()`.
 
 Loop execution uses `std.algorithm.vectorize` with vector loads:
 

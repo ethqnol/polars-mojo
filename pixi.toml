@@ -15,4 +15,3 @@ benchmark = { cmd = "./build.sh tests/test_simd_benchmark.mojo --run", depends-o
 docs = "python3 scripts/generate_docs.py"
 
 [dependencies]
-
