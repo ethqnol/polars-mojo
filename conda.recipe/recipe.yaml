@@ -9,7 +9,7 @@ package:
 
 source:
   - git: https://github.com/ethqnol/polars-mojo.git
-    rev: c04e28fed3b7eb83c6208aaad7cf14926381fed9
+    rev: 2485515b42838577285c3a4416e205cdb6a5eda0
 
 build:
   number: 0
@@ -21,8 +21,8 @@ build:
     - cp target/release/libpolars_ffi.a ${{ PREFIX }}/lib/
 
     - mkdir -p ${{ PREFIX }}/lib/mojo
-    - mojo precompile mojo -o ${{ PREFIX }}/lib/mojo/molars.mojoc
-    - cp -r mojo ${{ PREFIX }}/lib/mojo/molars
+    - mojo precompile molars -o ${{ PREFIX }}/lib/mojo/molars.mojoc
+    - cp -r molars ${{ PREFIX }}/lib/mojo/molars
 
     - mkdir -p ${{ PREFIX }}/etc/conda/activate.d ${{ PREFIX }}/etc/conda/deactivate.d
     - |
@@ -48,7 +48,6 @@ requirements:
   build:
     - ${{ compiler('c') }}
     - ${{ compiler('rust') }}
-    - cargo
   host:
     - mojo-compiler ${{ mojo_version }}
   run:

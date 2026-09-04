@@ -20,4 +20,4 @@ scratch/
 # Conda build recipe
 conda.recipe/
 
-
+output/
