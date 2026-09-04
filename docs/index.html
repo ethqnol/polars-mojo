@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>molars &mdash; Polars DataFrame for Mojo</title>
+  <meta name="description" content="Native zero-copy Polars DataFrame bindings for Mojo via Apache Arrow C Data Interface">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #090d16;
+      --bg-secondary: #0e1626;
+      --bg-surface: rgba(18, 28, 47, 0.65);
+      --bg-card: rgba(22, 34, 56, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(56, 189, 248, 0.35);
+
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+
+      --cyan: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.2);
+      --flame: #f97316;
+      --purple: #c084fc;
+      --emerald: #34d399;
+
+      --sidebar-width: 280px;
+      --toc-width: 240px;
+      --header-height: 64px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      background: rgba(9, 13, 22, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #ffffff;
+    }
+
+    .version-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .search-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 220px;
+    }
+
+    .search-trigger:hover {
+      border-color: var(--border-hover);
+      color: var(--text-main);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.1);
+    }
+
+    .search-kbd {
+      margin-left: auto;
+      font-size: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-family: var(--font-mono);
+    }
+
+    .gh-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+    }
+
+    .gh-link:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .app-layout {
+      display: flex;
+      margin-top: var(--header-height);
+      min-height: calc(100vh - var(--header-height));
+    }
+
+    aside.sidebar {
+      width: var(--sidebar-width);
+      position: fixed;
+      top: var(--header-height);
+      bottom: 0;
+      left: 0;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 24px 16px;
+      z-index: 50;
+    }
+
+    .nav-category {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-sub);
+      margin: 20px 10px 8px 10px;
+    }
+    .nav-category:first-of-type {
+      margin-top: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-item.active {
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      font-weight: 600;
+    }
+
+    main.content-area {
+      margin-left: var(--sidebar-width);
+      margin-right: var(--toc-width);
+      flex: 1;
+      padding: 44px 56px 80px 56px;
+      max-width: 960px;
+    }
+
+    aside.toc {
+      width: var(--toc-width);
+      position: fixed;
+      top: var(--header-height);
+      bottom: 0;
+      right: 0;
+      padding: 36px 20px;
+      overflow-y: auto;
+      border-left: 1px solid var(--border-color);
+    }
+
+    .toc-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-sub);
+      margin-bottom: 12px;
+    }
+
+    .toc-list {
+      list-style: none;
+    }
+
+    .toc-link {
+      display: block;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 4px 0;
+      transition: color 0.15s ease;
+      line-height: 1.4;
+    }
+
+    .toc-link:hover {
+      color: var(--cyan);
+    }
+    .toc-link.indent {
+      padding-left: 14px;
+      font-size: 12px;
+    }
+
+    .markdown-body h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: #fff;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .markdown-body h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: #f8fafc;
+      margin-top: 36px;
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .markdown-body h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    .markdown-body h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--cyan);
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+
+    .markdown-body h5 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border-left: 3px solid var(--cyan);
+    }
+
+    .markdown-body p {
+      margin-bottom: 16px;
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    .markdown-body ul, .markdown-body ol {
+      margin-bottom: 18px;
+      padding-left: 24px;
+      color: #cbd5e1;
+    }
+
+    .markdown-body li {
+      margin-bottom: 6px;
+      font-size: 14.5px;
+    }
+
+    .markdown-body a {
+      color: var(--cyan);
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(56, 189, 248, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .markdown-body a:hover {
+      border-bottom-color: var(--cyan);
+      text-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .markdown-body code:not(pre code) {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fca5a5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .code-container {
+      position: relative;
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: #0f141c;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 600;
+    }
+
+    .markdown-body pre {
+      margin: 0;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+
+    .markdown-body th {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .markdown-body td {
+      padding: 10px 16px;
+      font-size: 13.5px;
+      color: #cbd5e1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .markdown-body tr:last-child td {
+      border-bottom: none;
+    }
+
+    .markdown-body hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 32px 0;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 10vh;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .search-modal {
+      background: #0f172a;
+      border: 1px solid var(--border-hover);
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+      width: 100%;
+      max-width: 620px;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .search-input-box {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      gap: 12px;
+    }
+
+    .search-input-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 16px;
+      font-family: var(--font-sans);
+    }
+
+    .search-results {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .search-item {
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background 0.15s ease;
+    }
+
+    .search-item:hover, .search-item.selected {
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .search-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .search-item-snippet {
+      font-size: 12px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1080px) {
+      aside.toc {
+        display: none;
+      }
+      main.content-area {
+        margin-right: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      aside.sidebar {
+        display: none;
+      }
+      main.content-area {
+        margin-left: 0;
+        padding: 24px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container" onclick="navigate('overview')">
+      <div class="logo-text">molars</div>
+      <span class="version-badge">v0.1.0</span>
+    </div>
+
+    <div class="header-actions">
+      <div class="search-trigger" onclick="openSearch()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span>Search documentation...</span>
+        <span class="search-kbd">⌘K</span>
+      </div>
+
+      <a href="https://github.com/ethqnol/polars-mojo" target="_blank" class="gh-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div id="sidebar-nav"></div>
+    </aside>
+
+    <main class="content-area">
+      <div id="markdown-container" class="markdown-body"></div>
+    </main>
+
+    <aside class="toc">
+      <div class="toc-title">On This Page</div>
+      <ul id="toc-list" class="toc-list"></ul>
+    </aside>
+  </div>
+
+  <div class="modal-overlay" id="search-modal" onclick="closeSearchOnOverlay(event)">
+    <div class="search-modal">
+      <div class="search-input-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="modal-search-input" placeholder="Search functions, types, keywords..." oninput="handleSearch(this.value)">
+      </div>
+      <div class="search-results" id="search-results">
+        <div style="padding: 24px; text-align: center; color: var(--text-sub); font-size: 13px;">Type a query to search documentation...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DOCS_DATA = {"overview": {"title": "Overview", "category": "Getting Started", "content": "# molars Documentation\n\n`molars` provides Mojo bindings for Polars via the Apache Arrow C Data Interface. It allows Mojo programs to read CSV and Parquet files and execute SQL queries with zero memory copies between the Rust engine and Mojo.\n\n## Features\n\n- **Zero-Copy Arrow ABI**: Reads data directly into Arrow `StructArray` buffers without serialization or Python runtime overhead.\n- **File Ingestion**: Multithreaded CSV and Parquet parsing backed by Polars.\n- **SQL Queries**: Run SQL statements with joins, aggregations, and filters via the Polars `SQLContext` query engine.\n- **SIMD Aggregations**: Vectorized column reductions (`sum_float64`, `sum_int64`, `mean_float64`) using Mojo's hardware vector primitives.\n- **String Support**: Compatible with 32-bit Utf8 (`u`), 64-bit LargeUtf8 (`U`), and Arrow StringView (`vu`).\n\n## Scope & Limitations (v0.1.0)\n\n`molars` is currently focused on ingestion, SQL querying, and raw buffer compute:\n- **Supported**: `DataFrame.read_csv`, `DataFrame.read_parquet`, `DataFrame.sql`, column views, SIMD aggregations, Arrow ABI structs.\n- **Not yet supported**: Fluent expression API (`pl.col(...)`), in-memory table mutations (`df.filter()`, `df.join()` between existing Mojo tables), writing files back to disk, and temporal/nested types.\n\n## Documentation Index\n\n- [Getting Started](getting-started.md): Installation, compilation, and basic usage.\n- [DataFrame API](dataframe.md): Loading files, inspecting dimensions, extracting columns, and pretty-printing.\n- [Series API](series.md): Pointer access, scalar indexing, string reading, and SIMD reductions.\n- [SQL Engine](sql.md): Querying CSV and Parquet files using Polars SQL.\n- [Arrow C Data Interface](arrow-abi.md): Memory lifecycle, ABI structs, and type mappings.\n", "icon": "home"}, "getting-started": {"title": "Quickstart Guide", "category": "Getting Started", "content": "# Getting Started\n\n## Installation\n\n### Via Pixi / Modular Community (Prefix.dev)\n\nAdd `polars-mojo` to your project:\n\n```bash\npixi add -c https://conda.modular.com/max -c conda-forge -c https://repo.prefix.dev/modular-community polars-mojo\n```\n\nIn your `pixi.toml`:\n\n```toml\n[dependencies]\npolars-mojo = \">=0.1.0\"\n```\n\n### Local Development\n\nClone the repository and compile the native Rust FFI library:\n\n```bash\ngit clone https://github.com/ethqnol/polars-mojo.git\ncd polars-mojo\npixi run build-rust\n```\n\nRun the test suite:\n\n```bash\npixi run tests\n```\n\nRun benchmarks:\n\n```bash\npixi run benchmark\n```\n\n## Compiling Mojo Programs\n\nWhen compiling an executable that imports `molars`, link `libpolars_ffi`:\n\n```bash\nmojo build my_app.mojo -Xlinker -lpolars_ffi\n```\n\nTo run directly:\n\n```bash\nmojo run my_app.mojo -Xlinker -lpolars_ffi\n```\n\nIf developing locally inside this repository without package installation, include the current directory:\n\n```bash\nmojo run -I . -Xlinker target/release/libpolars_ffi.a -Xlinker -lpthread -Xlinker -ldl -Xlinker -lm my_app.mojo\n```\n\n*(Alternatively, use `./build.sh my_app.mojo --run`)*.\n\n## Minimal Example\n\nCreate a file named `main.mojo`:\n\n```mojo\nfrom molars import DataFrame\n\ndef main() raises:\n    # 1. Load CSV file\n    var df = DataFrame.read_csv(\"data.csv\")\n\n    # 2. Print table shape and top rows\n    print(df)\n\n    # 3. Extract a numeric column and calculate sum via SIMD\n    var col = df[\"price\"]\n    print(\"Row count:\", col.len())\n    print(\"Total price:\", col.sum_float64())\n    print(\"Average price:\", col.mean_float64())\n\n    # 4. Access strings zero-copy\n    var names = df[\"name\"]\n    print(\"First item:\", names.get_string(0))\n```\n", "icon": "rocket"}, "dataframe": {"title": "DataFrame API", "category": "Core Guides", "content": "# DataFrame API Reference\n\n`DataFrame` represents an in-memory tabular dataset backed by an Apache Arrow `StructArray`. Memory buffers are owned by Rust and managed in Mojo via RAII release callbacks.\n\n```mojo\nfrom molars import DataFrame\n```\n\n## Definition\n\n```mojo\nstruct DataFrame(Movable, Writable):\n    var _table: ManagedArrowTable\n    var _col_names: List[String]\n    var _col_formats: List[String]\n```\n\n### Traits\n\n- **`Movable`**: Enables move constructor semantics without copying underlying memory.\n- **`Writable`**: Formats the table for terminal output via `print(df)` or custom writers.\n\n---\n\n## Constructors\n\n### `read_csv`\n\n```mojo\n@staticmethod\ndef read_csv(path: String) raises -> DataFrame\n```\n\nReads a CSV file into a `DataFrame` using the Polars multithreaded reader.\n\n- **Parameters**:\n  - `path` (`String`): Path to the CSV file.\n- **Returns**: `DataFrame` containing the parsed columns.\n- **Raises**: `Error` if the file cannot be opened, contains invalid UTF-8 in the path, or cannot be parsed.\n\n```mojo\nvar df = DataFrame.read_csv(\"data.csv\")\n```\n\n---\n\n### `read_parquet`\n\n```mojo\n@staticmethod\ndef read_parquet(path: String) raises -> DataFrame\n```\n\nReads an Apache Parquet file into a `DataFrame`.\n\n- **Parameters**:\n  - `path` (`String`): Path to the Parquet file.\n- **Returns**: `DataFrame` containing the parsed columns.\n- **Raises**: `Error` if the file is missing or Parquet metadata is corrupt.\n\n```mojo\nvar df = DataFrame.read_parquet(\"data.parquet\")\n```\n\n---\n\n### `sql`\n\n```mojo\n@staticmethod\ndef sql(query: String, table_name: String, file_path: String) raises -> DataFrame\n```\n\nExecutes a SQL query against a dataset using the Polars `SQLContext` query engine. Supports joins, aggregations, filtering, and sorting before ingesting results into Mojo.\n\n- **Parameters**:\n  - `query` (`String`): SQL query string (e.g. `\"SELECT id, AVG(val) FROM t GROUP BY id\"`).\n  - `table_name` (`String`): Identifier used in the `FROM` clause.\n  - `file_path` (`String`): Path to the backing CSV or Parquet file.\n- **Returns**: `DataFrame` containing query results.\n- **Raises**: `Error` on syntax error, query planner failure, or file read error.\n\n```mojo\nvar df = DataFrame.sql(\n    \"SELECT name, score FROM students WHERE score >= 80 ORDER BY score DESC\",\n    \"students\",\n    \"tests/sample.csv\"\n)\n```\n\n---\n\n## Dimensions and Metadata\n\n### `num_rows` / `height`\n\n```mojo\ndef num_rows(self) -> Int\ndef height(self) -> Int\n```\n\nReturns the number of rows in the table.\n\n### `num_cols` / `width`\n\n```mojo\ndef num_cols(self) -> Int\ndef width(self) -> Int\n```\n\nReturns the number of columns in the table.\n\n### `shape`\n\n```mojo\ndef shape(self) -> Tuple[Int, Int]\n```\n\nReturns table dimensions as a `(rows, columns)` tuple.\n\n```mojo\nvar shape = df.shape()\nprint(\"Rows:\", shape[0], \"Columns:\", shape[1])\n```\n\n### `column_names`\n\n```mojo\ndef column_names(self) -> List[String]\n```\n\nReturns an ordered list of column names.\n\n### `column_index`\n\n```mojo\ndef column_index(self, name: String) raises -> Int\n```\n\nReturns the zero-based index of a column. Raises `Error` if the column name does not exist.\n\n---\n\n## Column Access\n\nColumns can be retrieved by name or index. Both methods return a zero-copy `Series` view over the Arrow buffers.\n\n### `column`\n\n```mojo\ndef column(self, name: String) raises -> Series\ndef column(self, idx: Int) raises -> Series\n```\n\n### Subscript Operator (`__getitem__`)\n\n```mojo\ndef __getitem__(self, name: String) raises -> Series\ndef __getitem__(self, idx: Int) raises -> Series\n```\n\n```mojo\nvar by_name = df[\"price\"]\nvar by_idx = df[0]\n```\n\n---\n\n## Display & Terminal Output\n\n`DataFrame` implements Mojo's `Writable` trait. Calling `print(df)` outputs the shape, column names, Arrow data types, and a preview of up to 5 rows:\n\n```\nshape: (5, 4)\nid | name | score | count\ni64 | str | f64 | i64\n---+---+---+---\n1 | Alice | 95.5 | 10\n2 | Bob | 82.0 | 20\n3 | Charlie | 88.5 | 30\n4 | David | 79.0 | 40\n5 | Eve | 90.5 | 50\n```\n", "icon": "table"}, "series": {"title": "Series API & SIMD", "category": "Core Guides", "content": "# Series API Reference\n\n`Series` represents a zero-copy column view over an Apache Arrow array. It provides direct memory pointer access, scalar getters, and SIMD vector aggregations.\n\n```mojo\nfrom molars import Series\n```\n\n## Definition\n\n```mojo\n@fieldwise_init\nstruct Series(Copyable, Movable):\n    var name: String\n    var format: String\n    var length: Int\n    var null_count: Int\n    var n_buffers: Int\n    var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]\n```\n\n### Traits\n\n- **`Copyable`**: Copies metadata and pointer references without cloning raw buffer memory.\n- **`Movable`**: Supports move semantics.\n\n### Fields\n\n- `name`: Column name.\n- `format`: Arrow C format string code (`\"g\"`, `\"f\"`, `\"l\"`, `\"i\"`, `\"u\"`, `\"U\"`, `\"vu\"`).\n- `length`: Number of elements in the column.\n- `null_count`: Number of nulls in the column.\n- `n_buffers`: Number of backing Arrow buffers.\n- `buffers`: Array of pointers to data, offset, and validity bitmap buffers.\n\n---\n\n## Buffer Pointer Access\n\nFor maximum performance, you can retrieve a typed pointer to the contiguous memory buffer. This enables custom loops, GPU transfers, or low-level SIMD operations without overhead.\n\n### `as_float64_ptr`\n\n```mojo\ndef as_float64_ptr(self) raises -> Pointer[Float64, MutUntrackedOrigin]\n```\n\nReturns a direct pointer to the `Float64` array. Raises `Error` if the column format is not `\"g\"`.\n\n```mojo\nvar ptr = series.as_float64_ptr()\nfor i in range(series.len()):\n    var val = ptr[unsafe_offset=i]\n```\n\n### `as_float32_ptr`\n\n```mojo\ndef as_float32_ptr(self) raises -> Pointer[Float32, MutUntrackedOrigin]\n```\n\nReturns a direct pointer to the `Float32` array. Raises `Error` if format is not `\"f\"`.\n\n### `as_int64_ptr`\n\n```mojo\ndef as_int64_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]\n```\n\nReturns a direct pointer to the `Int64` array. Raises `Error` if format is not `\"l\"`.\n\n### `as_int32_ptr`\n\n```mojo\ndef as_int32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]\n```\n\nReturns a direct pointer to the `Int32` array. Raises `Error` if format is not `\"i\"`.\n\n---\n\n## Scalar Element Access\n\n### Numeric Getters\n\n```mojo\ndef get_float64(self, idx: Int) raises -> Float64\ndef get_float32(self, idx: Int) raises -> Float32\ndef get_int64(self, idx: Int) raises -> Int64\ndef get_int32(self, idx: Int) raises -> Int32\n```\n\nReturns the scalar at `idx`. Raises `Error` if the column type does not match the requested type.\n\n### String Getters\n\n```mojo\ndef get_string(self, idx: Int) raises -> String\n```\n\nExtracts and decodes the string at `idx`. Supports three Arrow string layouts:\n1. **Utf8 (`\"u\"`)**: 32-bit offsets in `buffers[1]` + raw byte data in `buffers[2]`.\n2. **LargeUtf8 (`\"U\"`)**: 64-bit offsets in `buffers[1]` + raw byte data in `buffers[2]`.\n3. **Utf8View / StringView (`\"vu\"`)**: 16-byte view descriptors in `buffers[1]`. Strings $\\le 12$ bytes are inlined directly in the descriptor; strings $> 12$ bytes reference variadic heap buffers in `buffers[2..]`.\n\n```mojo\ndef get_as_string(self, idx: Int) -> String\n```\n\nFormats any element as a `String` regardless of underlying column format (used by table formatters).\n\n---\n\n## SIMD Vector Reductions\n\n`Series` implements hardware-vectorized reductions via `std.algorithm.vectorize` and `unsafe_load`:\n\n```mojo\ndef sum_float64(self) raises -> Float64\ndef sum_int64(self) raises -> Int64\ndef mean_float64(self) raises -> Float64\ndef mean_int64(self) raises -> Float64\n```\n\n### Example\n\n```mojo\nvar price_col = df[\"price\"]\nvar total = price_col.sum_float64()\nvar average = price_col.mean_float64()\n```\n", "icon": "columns"}, "sql": {"title": "SQL Query Engine", "category": "Core Guides", "content": "# SQL Engine\n\n`molars` integrates with Polars' built-in `SQLContext` to allow running standard SQL queries directly against CSV and Parquet files.\n\n```mojo\nfrom molars import DataFrame\n```\n\n## How It Works\n\nWhen you execute `DataFrame.sql(...)`:\n\n```\nUser SQL Query\n      \u2502\n      \u25bc\nPolars LazyFrame (scans CSV/Parquet)\n      \u2502\n      \u25bc\nPolars SQLContext (parses SQL, builds logical plan)\n      \u2502\n      \u25bc\nPolars Query Optimizer (predicate pushdown, projection pushdown)\n      \u2502\n      \u25bc\nArrow StructArray Export (C Data Interface)\n      \u2502\n      \u25bc\nMojo DataFrame (zero-copy handoff)\n```\n\nBecause the query runs inside Polars before the data enters Mojo, full optimization (filtering rows before reading, reading only requested columns) applies automatically.\n\n---\n\n## Syntax and Examples\n\n### Basic Filtering and Column Selection\n\n```mojo\nvar df = DataFrame.sql(\n    \"SELECT name, score FROM students WHERE score >= 85\",\n    \"students\",\n    \"tests/sample.csv\"\n)\n```\n\n### Aggregations and Grouping\n\n```mojo\nvar df = DataFrame.sql(\n    \"SELECT department, AVG(salary) as avg_sal, COUNT(*) as cnt \"\n    + \"FROM employees \"\n    + \"GROUP BY department \"\n    + \"HAVING cnt > 5\",\n    \"employees\",\n    \"data/employees.parquet\"\n)\n```\n\n### Sorting and Limits\n\n```mojo\nvar df = DataFrame.sql(\n    \"SELECT id, product_name, price \"\n    + \"FROM inventory \"\n    + \"ORDER BY price DESC \"\n    + \"LIMIT 10\",\n    \"inventory\",\n    \"data/inventory.parquet\"\n)\n```\n\n---\n\n## Supported File Types\n\n- **Parquet**: Scanned via `LazyFrame::scan_parquet`. Enables columnar projection and row-group pruning.\n- **CSV**: Scanned via `LazyCsvReader`. Multithreaded parsing with schema inference.\n", "icon": "database"}, "arrow-abi": {"title": "Arrow C Data Interface", "category": "Internals", "content": "# Apache Arrow C Data Interface\n\n`molars` transfers tabular data between Rust and Mojo using the official [Apache Arrow C Data Interface](https://arrow.apache.org/docs/format/CDataInterface.html).\n\n```mojo\nfrom molars.arrow_abi import ArrowArray, ArrowSchema, ManagedArrowTable\n```\n\n## Architecture\n\nThe C Data Interface uses standard, C-compatible structs (`ArrowArray` and `ArrowSchema`) to pass columnar data across language boundaries without copying memory or serializing through disk/IPC.\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502     Rust (polars_arrow::ffi)    \u2502\n\u2502  - Allocates column data arrays \u2502\n\u2502  - Exports to Arrow C structs   \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                 \u2502 raw pointers\n                 \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502       Mojo (ManagedArrowTable)  \u2502\n\u2502  - Inspects buffers and schemas \u2502\n\u2502  - Owns pointer lifecycle (RAII)\u2502\n\u2502  - Invokes release callback     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n---\n\n## Memory Ownership & Lifecycle\n\n1. **Allocation**:\n   Rust reads files, builds a Polars `DataFrame`, and packs it into an Arrow `StructArray`. The underlying buffers are allocated on Rust's heap.\n2. **Export**:\n   `ffi::export_array_to_c` and `ffi::export_field_to_c` write the memory addresses into caller-supplied `ArrowArray` and `ArrowSchema` pointer blocks.\n3. **Mojo Management**:\n   Mojo wraps these pointers in `ManagedArrowTable`.\n4. **Deallocation (RAII)**:\n   When `ManagedArrowTable` is destroyed (`__deinit__`), Mojo calls the `release` callbacks on the C structs:\n   ```mojo\n   def __deinit__(deinit self):\n       if self.is_active:\n           _ = external_call[\"molars_release_array\", NoneType](self.array_ptr)\n           _ = external_call[\"molars_release_schema\", NoneType](self.schema_ptr)\n           self.array_ptr.unsafe_free()\n           self.schema_ptr.unsafe_free()\n   ```\n   The release callback calls into Rust, which drops the underlying `Box<dyn Array>` and returns memory to the OS allocator.\n\n---\n\n## Arrow Format Codes\n\nThe `ArrowSchema.format` string identifies the data type:\n\n| Code | Format | C Type | Mojo Type |\n|------|--------|--------|-----------|\n| `g` | Float64 | `double` | `Float64` |\n| `f` | Float32 | `float` | `Float32` |\n| `l` | Int64 | `int64_t` | `Int64` |\n| `i` | Int32 | `int32_t` | `Int32` |\n| `u` | Utf8 | `uint8_t*` (32-bit offsets) | `String` |\n| `U` | LargeUtf8 | `uint8_t*` (64-bit offsets) | `String` |\n| `vu` | Utf8View (StringView) | `16-byte descriptors` + variadic buffers | `String` |\n| `+s` | Struct | Nested child arrays | Root table |\n\n---\n\n## Struct Definitions\n\n### `ArrowSchema`\n\n```mojo\n@fieldwise_init\nstruct ArrowSchema(ImplicitlyCopyable, Copyable, Movable):\n    var format: Pointer[c_char, MutUntrackedOrigin]\n    var name: Pointer[c_char, MutUntrackedOrigin]\n    var metadata: Pointer[c_char, MutUntrackedOrigin]\n    var flags: Int64\n    var n_children: Int64\n    var children: Pointer[Pointer[ArrowSchema, MutUntrackedOrigin], MutUntrackedOrigin]\n    var dictionary: Pointer[ArrowSchema, MutUntrackedOrigin]\n    var release: Pointer[NoneType, MutUntrackedOrigin]\n    var private_data: Pointer[NoneType, MutUntrackedOrigin]\n```\n\n### `ArrowArray`\n\n```mojo\n@fieldwise_init\nstruct ArrowArray(ImplicitlyCopyable, Copyable, Movable):\n    var length: Int64\n    var null_count: Int64\n    var offset: Int64\n    var n_buffers: Int64\n    var n_children: Int64\n    var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]\n    var children: Pointer[Pointer[ArrowArray, MutUntrackedOrigin], MutUntrackedOrigin]\n    var dictionary: Pointer[ArrowArray, MutUntrackedOrigin]\n    var release: Pointer[NoneType, MutUntrackedOrigin]\n    var private_data: Pointer[NoneType, MutUntrackedOrigin]\n```\n", "icon": "cpu"}, "architecture": {"title": "Architecture & Memory", "category": "Internals", "content": "# Architecture\n\n`polars-mojo` provides native Mojo bindings to the Polars query engine without going through Python. It exchanges data using the Apache Arrow C Data Interface.\n\n## Overview\n\n```\nMojo Application\n  \u2502\n  \u25bc\nmolars.dataframe (DataFrame, Series)\n  \u2502 (zero-copy pointer views, SIMD kernels)\n  \u25bc\nmolars.arrow_abi (ArrowArray, ArrowSchema, ManagedArrowTable)\n  \u2502 (C ABI structs, RAII release callbacks)\n  \u25bc\nlibpolars_ffi (Rust C ABI)\n  \u2502\n  \u25bc\nPolars Engine (CSV/Parquet readers, SQLContext, LazyFrame)\n```\n\n## Data Transfer & Memory Ownership\n\nData flows from Rust to Mojo zero-copy via the Arrow C Data Interface:\n\n1. **Query Execution**: Rust reads the input file (CSV or Parquet) or evaluates a SQL query via Polars' `LazyFrame` engine.\n2. **Arrow Struct Export**: The resulting `DataFrame` is aligned into a single chunk and converted to an Arrow `StructArray`, where each field corresponds to a column.\n3. **C ABI Handoff**: `ffi::export_array_to_c` and `ffi::export_field_to_c` populate caller-provided `ArrowArray` and `ArrowSchema` structs. The underlying data buffers remain owned by Rust's allocator.\n4. **Mojo Wrapper**: Mojo wraps the pointers in `ManagedArrowTable`.\n5. **Reclamation (RAII)**: When `ManagedArrowTable` goes out of scope, its `__deinit__` calls `molars_release_array` and `molars_release_schema`. These invoke the Arrow C `release` callbacks, allowing Rust to deallocate the column buffers.\n\n## Type Mappings\n\nArrow format strings (`ArrowSchema.format`) map to Mojo types as follows:\n\n| Format Code | Arrow Type | Mojo Accessor | Storage Layout |\n|-------------|------------|---------------|----------------|\n| `g` | Float64 | `as_float64_ptr()`, `get_float64()` | 64-bit IEEE 754 floats |\n| `f` | Float32 | `as_float32_ptr()`, `get_float32()` | 32-bit IEEE 754 floats |\n| `l` | Int64 | `as_int64_ptr()`, `get_int64()` | 64-bit signed integers |\n| `i` | Int32 | `as_int32_ptr()`, `get_int32()` | 32-bit signed integers |\n| `u` | Utf8 | `get_string()` | 32-bit offsets + UTF-8 byte buffer |\n| `U` | LargeUtf8 | `get_string()` | 64-bit offsets + UTF-8 byte buffer |\n| `vu` | Utf8View (StringView) | `get_string()` | 16-byte descriptors (inlined <=12B or buffer offset/len) + variadic buffers |\n\n## SIMD Vectorization\n\n`Series` aggregations (`sum_float64`, `sum_int64`, `mean_float64`) access the column's contiguous memory buffer via `as_float64_ptr()` / `as_int64_ptr()`. \n\nLoop execution uses `std.algorithm.vectorize` with vector loads:\n\n```mojo\ndef add_chunk[simd_width: Int](idx: Int) {mut total, imm ptr}:\n    var v = ptr.unsafe_load[width=simd_width](idx)\n    total += v.reduce_add()\n\nvectorize[simd_w](n, add_chunk)\n```\n\nThis compiles to target-native SIMD instructions (AVX2/AVX-512 on x86_64, NEON on ARM).\n\n## FFI Boundary\n\n`libpolars_ffi` exports the following C ABI symbols:\n\n- `molars_read_csv(path, out_array, out_schema) -> i32`\n- `molars_read_parquet(path, out_array, out_schema) -> i32`\n- `molars_sql_query(query, table_name, file_path, out_array, out_schema) -> i32`\n- `molars_release_array(array)`\n- `molars_release_schema(schema)`\n- `molars_get_last_error(buf, buf_len) -> i32`\n\nReturn codes follow standard Unix conventions: `0` for success, negative integers for failures. Errors are recorded in a thread-safe static buffer retrievable via `molars_get_last_error`.\n", "icon": "layers"}, "api-reference": {"title": "Auto API Reference", "category": "Reference", "content": "# API Reference (Auto-Generated)\n\n*Generated from source docstrings via `mojo doc`.*\n\n## Module `molars.arrow_abi`\n\n### `struct ArrowArray`\n\n**Implemented Traits**: `AnyType, Copyable, Deinitable, ImplicitlyCopyable, Movable`\n\nC ABI layout for a data array in the Apache Arrow C Data Interface.\n\nTraits:\n    ImplicitlyCopyable: Can be copied implicitly by value.\n    Copyable: Supports explicit copying.\n    Movable: Supports move semantics.\n\nFields:\n    length: Number of rows/elements in the array.\n    null_count: Number of null values, or -1 if unknown.\n    offset: Logical start offset within the buffers.\n    n_buffers: Number of memory buffer pointers in buffers array.\n    n_children: Number of child arrays (for struct/nested arrays).\n    buffers: Array of raw pointers to data and validity bitmap buffers.\n    children: Array of pointers to child ArrowArray structs.\n    dictionary: Pointer to dictionary encoding array, or null.\n    release: Function pointer to release callback for this array.\n    private_data: Pointer to implementation-specific private data.\n\n#### Methods\n\n##### `def is_released(self) -> Bool`\n\nReturns True if the release callback has been cleared to null.\n\n**Returns:** `Bool`\n\n---\n\n### `struct ArrowSchema`\n\n**Implemented Traits**: `AnyType, Copyable, Deinitable, ImplicitlyCopyable, Movable`\n\nC ABI layout for schema metadata in the Apache Arrow C Data Interface.\n\nTraits:\n    ImplicitlyCopyable: Can be copied implicitly by value.\n    Copyable: Supports explicit copying.\n    Movable: Supports move semantics.\n\nFields:\n    format: Format descriptor string pointer (e.g. 'g', 'l', 'vu').\n    name: Column or field name pointer.\n    metadata: Optional metadata string pointer.\n    flags: Bit flags representing schema properties (e.g. dictionary ordered).\n    n_children: Number of child schemas (for nested or struct schemas).\n    children: Array of pointers to child ArrowSchema structs.\n    dictionary: Pointer to dictionary encoding schema, or null.\n    release: Function pointer to release callback for this schema.\n    private_data: Pointer to implementation-specific private data.\n\n#### Methods\n\n##### `def is_released(self) -> Bool`\n\nReturns True if the release callback has been cleared to null.\n\n**Returns:** `Bool`\n\n---\n\n##### `def format_str(self) -> String`\n\nConverts the format pointer into a Mojo String.\n\n**Returns:** `String`\n\n---\n\n##### `def name_str(self) -> String`\n\nConverts the name pointer into a Mojo String.\n\n**Returns:** `String`\n\n---\n\n### `struct ManagedArrowTable`\n\n**Implemented Traits**: `AnyType, Deinitable, Movable`\n\nRAII memory manager for heap-allocated ArrowArray and ArrowSchema pointers.\n\nInvokes the Arrow C release callbacks and frees pointer allocations\nwhen the instance goes out of scope.\n\nTraits:\n    Movable: Supports move semantics to transfer ownership.\n\nFields:\n    array_ptr: Pointer to heap-allocated root ArrowArray struct.\n    schema_ptr: Pointer to heap-allocated root ArrowSchema struct.\n    is_active: Flag indicating whether this instance owns active allocations.\n\n#### Methods\n\n##### `def __init__(out self, array_ptr: Pointer[ArrowArray, MutUntrackedOrigin], schema_ptr: Pointer[ArrowSchema, MutUntrackedOrigin])`\n\nInitializes manager with active pointer ownership.\n\n**Arguments:**\n\n- `array_ptr` (`Pointer[ArrowArray, MutUntrackedOrigin]`): Pointer to allocated ArrowArray.\n- `schema_ptr` (`Pointer[ArrowSchema, MutUntrackedOrigin]`): Pointer to allocated ArrowSchema.\n\n**Returns:** `Self`\n\n---\n\n##### `def __init__(out self, *, deinit move: Self)`\n\nMove constructor transferring ownership.\n\n**Arguments:**\n\n- `move` (`Self`): Source ManagedArrowTable being moved from.\n\n**Returns:** `Self`\n\n---\n\n##### `def __deinit__(deinit self)`\n\nReleases Arrow resources via FFI callbacks and deallocates pointers.\n\n---\n\n##### `def array(self) -> ArrowArray`\n\nReturns a copy of the root ArrowArray struct.\n\n**Returns:** `ArrowArray`\n\n---\n\n##### `def schema(self) -> ArrowSchema`\n\nReturns a copy of the root ArrowSchema struct.\n\n**Returns:** `ArrowSchema`\n\n---\n\n##### `def num_rows(self) -> Int`\n\nReturns the row count from the root ArrowArray.\n\n**Returns:** `Int`\n\n---\n\n##### `def num_cols(self) -> Int`\n\nReturns the column count from the root ArrowArray.\n\n**Returns:** `Int`\n\n---\n\n##### `def get_column_array(self, col_idx: Int) -> ArrowArray`\n\nExtracts the child ArrowArray for the specified column index.\n\n**Arguments:**\n\n- `col_idx` (`Int`): Zero-based column index.\n\n**Returns:** `ArrowArray` - Child ArrowArray for the column.\n\n**Raises:** Error: If col_idx is out of range.\n\n---\n\n##### `def get_column_schema(self, col_idx: Int) -> ArrowSchema`\n\nExtracts the child ArrowSchema for the specified column index.\n\n**Arguments:**\n\n- `col_idx` (`Int`): Zero-based column index.\n\n**Returns:** `ArrowSchema` - Child ArrowSchema for the column.\n\n**Raises:** Error: If col_idx is out of range.\n\n---\n\n##### `def get_column_name(self, col_idx: Int) -> String`\n\nRetrieves the name of the column at col_idx.\n\n**Arguments:**\n\n- `col_idx` (`Int`): Zero-based column index.\n\n**Returns:** `String` - Column name string.\n\n**Raises:** Error: If col_idx is out of range.\n\n---\n\n##### `def get_column_format(self, col_idx: Int) -> String`\n\nRetrieves the Arrow format code of the column at col_idx.\n\n**Arguments:**\n\n- `col_idx` (`Int`): Zero-based column index.\n\n**Returns:** `String` - Arrow format code (e.g. 'g', 'l', 'vu').\n\n**Raises:** Error: If col_idx is out of range.\n\n---\n\n## Module `molars.bridge`\n\n### `struct MolarsBridge`\n\n**Implemented Traits**: `AnyType, Deinitable, Movable`\n\n#### Methods\n\n##### `def read_csv(path: String, array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`\n\n**Arguments:**\n\n- `path` (`String`)\n- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)\n- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)\n\n**Returns:** `Int32`\n\n---\n\n##### `def read_parquet(path: String, array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`\n\n**Arguments:**\n\n- `path` (`String`)\n- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)\n- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)\n\n**Returns:** `Int32`\n\n---\n\n##### `def sql_query(query: String, table_name: String, file_path: String, array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`\n\n**Arguments:**\n\n- `query` (`String`)\n- `table_name` (`String`)\n- `file_path` (`String`)\n- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)\n- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)\n\n**Returns:** `Int32`\n\n---\n\n##### `def release_array(array: Pointer[ArrowArray, MutUntrackedOrigin])`\n\n**Arguments:**\n\n- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)\n\n---\n\n##### `def release_schema(schema: Pointer[ArrowSchema, MutUntrackedOrigin])`\n\n**Arguments:**\n\n- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)\n\n---\n\n##### `def get_last_error() -> String`\n\n**Returns:** `String`\n\n---\n\n## Module `molars.dataframe`\n\n### `struct DataFrame`\n\n**Implemented Traits**: `AnyType, Deinitable, Movable, Writable`\n\nAn in-memory columnar table backed by an Apache Arrow StructArray.\n\nTraits:\n    Movable: Supports move lifecycle semantics.\n    Writable: Implements terminal pretty-printing via write_to.\n\nFields:\n    _table: RAII manager for underlying ArrowArray and ArrowSchema pointers.\n    _col_names: Ordered list of column names.\n    _col_formats: Ordered list of Arrow format type codes for each column.\n\n#### Methods\n\n##### `def __init__(out self, *, deinit move: Self)`\n\n**Arguments:**\n\n- `move` (`Self`)\n\n**Returns:** `Self`\n\n---\n\n##### `def __init__(out self, var table: ManagedArrowTable)`\n\n**Arguments:**\n\n- `table` (`ManagedArrowTable`)\n\n**Returns:** `Self`\n\n---\n\n##### `def __getitem__(self, name: String) -> Series`\n\nSubscript indexing operator to retrieve a column by name.\n\n**Arguments:**\n\n- `name` (`String`): Column name.\n\n**Returns:** `Series` - Series view over the column's Arrow buffers.\n\n**Raises:** Error: If the column name does not exist.\n\n---\n\n##### `def __getitem__(self, idx: Int) -> Series`\n\nSubscript indexing operator to retrieve a column by index.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based column index.\n\n**Returns:** `Series` - Series view over the column's Arrow buffers.\n\n**Raises:** Error: If index is out of bounds.\n\n---\n\n##### `def read_csv(path: String) -> Self`\n\nReads a CSV file into a DataFrame using the Polars multithreaded reader.\n\n**Arguments:**\n\n- `path` (`String`): Filesystem path to the CSV file.\n\n**Returns:** `Self` - DataFrame populated with columns exported via the Arrow C Data Interface.\n\n**Raises:** Error: If the file path is invalid, parsing fails, or allocation fails.\n\n---\n\n##### `def read_parquet(path: String) -> Self`\n\nReads an Apache Parquet file into a DataFrame using the Polars reader.\n\n**Arguments:**\n\n- `path` (`String`): Filesystem path to the Parquet file.\n\n**Returns:** `Self` - DataFrame populated with columns exported via the Arrow C Data Interface.\n\n**Raises:** Error: If the file cannot be opened, metadata is corrupted, or parsing fails.\n\n---\n\n##### `def sql(query: String, table_name: String, file_path: String) -> Self`\n\nExecutes a SQL query against a dataset using the Polars SQLContext engine.\n\nRegisters the dataset as a LazyFrame, applies query optimizations, and\ncollects the result into an Arrow table.\n\n**Arguments:**\n\n- `query` (`String`): SQL query string (e.g. \"SELECT col_a, AVG(col_b) FROM tbl GROUP BY col_a\").\n- `table_name` (`String`): Table identifier to reference in the FROM clause.\n- `file_path` (`String`): Filesystem path to the source CSV or Parquet file.\n\n**Returns:** `Self` - DataFrame containing query results.\n\n**Raises:** Error: On invalid SQL syntax, plan execution error, or read failure.\n\n---\n\n##### `def num_rows(self) -> Int`\n\nReturns the number of rows in the table.\n\n**Returns:** `Int` - Total row count as an Int.\n\n---\n\n##### `def height(self) -> Int`\n\nReturns the number of rows in the table.\n\n**Returns:** `Int` - Total row count as an Int.\n\n---\n\n##### `def num_cols(self) -> Int`\n\nReturns the number of columns in the table.\n\n**Returns:** `Int` - Total column count as an Int.\n\n---\n\n##### `def width(self) -> Int`\n\nReturns the number of columns in the table.\n\n**Returns:** `Int` - Total column count as an Int.\n\n---\n\n##### `def shape(self) -> Tuple[Int, Int]`\n\nReturns table dimensions as a (height, width) tuple.\n\n**Returns:** `Tuple[Int, Int]` - Tuple containing (num_rows, num_cols).\n\n---\n\n##### `def column_names(self) -> List[String]`\n\nReturns the ordered list of column names in the table.\n\n**Returns:** `List[String]` - List of column name strings.\n\n---\n\n##### `def column_index(self, name: String) -> Int`\n\nFinds the zero-based column index for a given column name.\n\n**Arguments:**\n\n- `name` (`String`): Column name to search for.\n\n**Returns:** `Int` - Zero-based integer column index.\n\n**Raises:** Error: If no column matches the provided name.\n\n---\n\n##### `def column(self, name: String) -> Series`\n\nExtracts a column Series by name with zero memory copies.\n\n**Arguments:**\n\n- `name` (`String`): Column name to look up.\n\n**Returns:** `Series` - Series view over the column's Arrow buffers.\n\n**Raises:** Error: If the column name is not found.\n\n---\n\n##### `def column(self, idx: Int) -> Series`\n\nExtracts a column Series by index with zero memory copies.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based column index.\n\n**Returns:** `Series` - Series view over the column's Arrow buffers.\n\n**Raises:** Error: If the index is out of range [0, num_cols - 1].\n\n---\n\n##### `def write_to(self, mut writer: T)`\n\nFormats the DataFrame as an aligned ASCII preview table for terminal output.\n\n**Arguments:**\n\n- `writer` (`T`): Output stream receiving formatted characters.\n\n---\n\n### `struct Series`\n\n**Implemented Traits**: `AnyType, Copyable, Deinitable, Movable`\n\nA zero-copy typed view over a single Apache Arrow array.\n\nProvides direct buffer pointer access and hardware-accelerated SIMD\nreductions over numeric and string Arrow columns.\n\nTraits:\n    Copyable: Supports deep copying of Series metadata.\n    Movable: Supports move semantics.\n\nFields:\n    name: Name of the column.\n    format: Arrow format string descriptor (e.g. 'g' for f64, 'l' for i64, 'vu' for StringView).\n    length: Number of rows in the series.\n    null_count: Number of null values in the column.\n    n_buffers: Number of backing memory buffers.\n    buffers: Pointer array to underlying Arrow buffers.\n\n#### Methods\n\n##### `def len(self) -> Int`\n\nReturns the number of elements in the series.\n\n**Returns:** `Int` - Row count as an Int.\n\n---\n\n##### `def as_float64_ptr(self) -> Pointer[Float64, MutUntrackedOrigin]`\n\nReturns a typed pointer to the underlying Float64 buffer.\n\n**Returns:** `Pointer[Float64, MutUntrackedOrigin]` - Pointer to contiguous 64-bit float array.\n\n**Raises:** Error: If the series format is not 'g' (Float64).\n\n---\n\n##### `def as_float32_ptr(self) -> Pointer[Float32, MutUntrackedOrigin]`\n\nReturns a typed pointer to the underlying Float32 buffer.\n\n**Returns:** `Pointer[Float32, MutUntrackedOrigin]` - Pointer to contiguous 32-bit float array.\n\n**Raises:** Error: If the series format is not 'f' (Float32).\n\n---\n\n##### `def as_int64_ptr(self) -> Pointer[Int64, MutUntrackedOrigin]`\n\nReturns a typed pointer to the underlying Int64 buffer.\n\n**Returns:** `Pointer[Int64, MutUntrackedOrigin]` - Pointer to contiguous 64-bit signed integer array.\n\n**Raises:** Error: If the series format is not 'l' (Int64).\n\n---\n\n##### `def as_int32_ptr(self) -> Pointer[Int32, MutUntrackedOrigin]`\n\nReturns a typed pointer to the underlying Int32 buffer.\n\n**Returns:** `Pointer[Int32, MutUntrackedOrigin]` - Pointer to contiguous 32-bit signed integer array.\n\n**Raises:** Error: If the series format is not 'i' (Int32).\n\n---\n\n##### `def get_float64(self, idx: Int) -> Float64`\n\nReturns the Float64 scalar at the specified row index.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `Float64` - Float64 value at index.\n\n**Raises:** Error: If the series is not Float64 or index is invalid.\n\n---\n\n##### `def get_float32(self, idx: Int) -> Float32`\n\nReturns the Float32 scalar at the specified row index.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `Float32` - Float32 value at index.\n\n**Raises:** Error: If the series is not Float32 or index is invalid.\n\n---\n\n##### `def get_int64(self, idx: Int) -> Int64`\n\nReturns the Int64 scalar at the specified row index.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `Int64` - Int64 value at index.\n\n**Raises:** Error: If the series is not Int64 or index is invalid.\n\n---\n\n##### `def get_int32(self, idx: Int) -> Int32`\n\nReturns the Int32 scalar at the specified row index.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `Int32` - Int32 value at index.\n\n**Raises:** Error: If the series is not Int32 or index is invalid.\n\n---\n\n##### `def get_string(self, idx: Int) -> String`\n\nReturns the string at the specified row index.\n\nSupports Utf8 ('u'), LargeUtf8 ('U'), and Arrow StringView ('vu').\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `String` - Decoded UTF-8 string.\n\n**Raises:** Error: If the series is not a string column format.\n\n---\n\n##### `def get_as_string(self, idx: Int) -> String`\n\nFormats the value at index as a string across all supported data types.\n\n**Arguments:**\n\n- `idx` (`Int`): Zero-based row index.\n\n**Returns:** `String` - String representation of the element.\n\n---\n\n##### `def sum_float64(self) -> Float64`\n\nComputes the sum of all elements using SIMD vector loads.\n\n**Returns:** `Float64` - Total sum as Float64.\n\n**Raises:** Error: If the series format is not Float64 ('g').\n\n---\n\n##### `def sum_int64(self) -> Int64`\n\nComputes the sum of all elements using SIMD vector loads.\n\n**Returns:** `Int64` - Total sum as Int64.\n\n**Raises:** Error: If the series format is not Int64 ('l').\n\n---\n\n##### `def mean_float64(self) -> Float64`\n\nComputes the arithmetic mean of the series.\n\n**Returns:** `Float64` - Arithmetic mean as Float64, or 0.0 if empty.\n\n**Raises:** Error: If the series format is not Float64 ('g').\n\n---\n\n##### `def mean_int64(self) -> Float64`\n\nComputes the arithmetic mean of the series.\n\n**Returns:** `Float64` - Arithmetic mean as Float64, or 0.0 if empty.\n\n**Raises:** Error: If the series format is not Int64 ('l').\n\n---\n", "icon": "code"}};
+
+    marked.setOptions({
+      highlight: function(code, lang) {
+        const language = highlight.getLanguage(lang) ? lang : 'plaintext';
+        return highlight.highlight(code, { language }).value;
+      },
+      langPrefix: 'hljs language-'
+    });
+
+    function buildSidebar() {
+      const navContainer = document.getElementById('sidebar-nav');
+      navContainer.innerHTML = '';
+
+      const categories = {};
+      Object.keys(DOCS_DATA).forEach(id => {
+        const item = DOCS_DATA[id];
+        if (!categories[item.category]) {
+          categories[item.category] = [];
+        }
+        categories[item.category].push({ id, ...item });
+      });
+
+      Object.keys(categories).forEach(cat => {
+        const catHeader = document.createElement('div');
+        catHeader.className = 'nav-category';
+        catHeader.textContent = cat;
+        navContainer.appendChild(catHeader);
+
+        categories[cat].forEach(item => {
+          const a = document.createElement('a');
+          a.className = 'nav-item';
+          a.id = `nav-${item.id}`;
+          a.textContent = item.title;
+          a.onclick = () => navigate(item.id);
+          navContainer.appendChild(a);
+        });
+      });
+    }
+
+    function navigate(sectionId) {
+      if (!DOCS_DATA[sectionId]) sectionId = 'overview';
+      window.location.hash = sectionId;
+
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.getElementById(`nav-${sectionId}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      const rawMarkdown = DOCS_DATA[sectionId].content;
+      const html = marked.parse(rawMarkdown);
+      const container = document.getElementById('markdown-container');
+      container.innerHTML = html;
+
+      container.querySelectorAll('pre').forEach((pre) => {
+        const code = pre.querySelector('code');
+        const lang = code ? (code.className.match(/language-([\w-]+)/) || ['','mojo'])[1] : 'code';
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-container';
+
+        const header = document.createElement('div');
+        header.className = 'code-header';
+        header.innerHTML = `<span>${lang.toUpperCase()}</span><button class="copy-btn" onclick="copyCode(this)">Copy</button>`;
+
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
+      });
+
+      buildTOC(container);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function buildTOC(container) {
+      const tocList = document.getElementById('toc-list');
+      tocList.innerHTML = '';
+
+      const headings = container.querySelectorAll('h2, h3');
+      headings.forEach((h, idx) => {
+        if (!h.id) {
+          h.id = 'heading-' + idx;
+        }
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.className = 'toc-link' + (h.tagName === 'H3' ? ' indent' : '');
+        a.textContent = h.textContent;
+        a.href = '#' + h.id;
+        a.onclick = (e) => {
+          e.preventDefault();
+          h.scrollIntoView({ behavior: 'smooth' });
+        };
+        li.appendChild(a);
+        tocList.appendChild(li);
+      });
+    }
+
+    function copyCode(btn) {
+      const code = btn.closest('.code-container').querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--emerald)';
+        btn.style.color = '#000';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    function openSearch() {
+      const modal = document.getElementById('search-modal');
+      modal.classList.add('open');
+      const input = document.getElementById('modal-search-input');
+      input.value = '';
+      input.focus();
+      handleSearch('');
+    }
+
+    function closeSearch() {
+      document.getElementById('search-modal').classList.remove('open');
+    }
+
+    function closeSearchOnOverlay(e) {
+      if (e.target.id === 'search-modal') closeSearch();
+    }
+
+    function handleSearch(query) {
+      const resultsContainer = document.getElementById('search-results');
+      query = query.trim().toLowerCase();
+      if (!query) {
+        resultsContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-sub); font-size: 13px;">Type a query to search documentation...</div>';
+        return;
+      }
+
+      const matches = [];
+      Object.keys(DOCS_DATA).forEach(secId => {
+        const item = DOCS_DATA[secId];
+        const lines = item.content.split('\n');
+        lines.forEach(line => {
+          if (line.toLowerCase().includes(query)) {
+            matches.push({
+              secId,
+              title: item.title,
+              snippet: line.replace(/[#*`]/g, '').trim()
+            });
+          }
+        });
+      });
+
+      if (matches.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-sub); font-size: 13px;">No results found.</div>';
+        return;
+      }
+
+      resultsContainer.innerHTML = matches.slice(0, 10).map((m, idx) => `
+        <div class="search-item" onclick="navigate('${m.secId}'); closeSearch();">
+          <div class="search-item-title">${m.title}</div>
+          <div class="search-item-snippet">${m.snippet}</div>
+        </div>
+      `).join('');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openSearch();
+      }
+      if (e.key === 'Escape') {
+        closeSearch();
+      }
+    });
+
+    buildSidebar();
+    const initialSection = window.location.hash.replace('#', '') || 'overview';
+    navigate(initialSection);
+  </script>
+</body>
+</html>

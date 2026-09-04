@@ -12,6 +12,7 @@ test-dataframe = { cmd = "./build.sh tests/test_dataframe.mojo --run", depends-o
 tests = { cmd = "./build.sh tests/test_arrow_abi.mojo --run && ./build.sh tests/test_dataframe.mojo --run", depends-on = ["build-rust"] }
 test = { depends-on = ["tests"] }
 benchmark = { cmd = "./build.sh tests/test_simd_benchmark.mojo --run", depends-on = ["build-rust"] }
+docs = "python3 scripts/generate_docs.py"
 
 [dependencies]
 

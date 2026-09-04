@@ -6,6 +6,23 @@ from molars.bridge import MolarsBridge
 
 @fieldwise_init
 struct Series(Copyable, Movable):
+    """A zero-copy typed view over a single Apache Arrow array.
+
+    Provides direct buffer pointer access and hardware-accelerated SIMD
+    reductions over numeric and string Arrow columns.
+
+    Traits:
+        Copyable: Supports deep copying of Series metadata.
+        Movable: Supports move semantics.
+
+    Fields:
+        name: Name of the column.
+        format: Arrow format string descriptor (e.g. 'g' for f64, 'l' for i64, 'vu' for StringView).
+        length: Number of rows in the series.
+        null_count: Number of null values in the column.
+        n_buffers: Number of backing memory buffers.
+        buffers: Pointer array to underlying Arrow buffers.
+    """
     var name: String
     var format: String
     var length: Int
@@ -14,50 +31,152 @@ struct Series(Copyable, Movable):
     var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]
 
     def len(self) -> Int:
+        """Returns the number of elements in the series.
+
+        Returns:
+            Row count as an Int.
+        """
         return self.length
 
     def as_float64_ptr(self) raises -> Pointer[Float64, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Float64 buffer.
+
+        Returns:
+            Pointer to contiguous 64-bit float array.
+
+        Raises:
+            Error: If the series format is not 'g' (Float64).
+        """
         if self.format != "g":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float64 ('g')")
         return self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]()
 
     def as_float32_ptr(self) raises -> Pointer[Float32, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Float32 buffer.
+
+        Returns:
+            Pointer to contiguous 32-bit float array.
+
+        Raises:
+            Error: If the series format is not 'f' (Float32).
+        """
         if self.format != "f":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float32 ('f')")
         return self.buffers[unsafe_offset=1].unsafe_bitcast[Float32]()
 
     def as_int64_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Int64 buffer.
+
+        Returns:
+            Pointer to contiguous 64-bit signed integer array.
+
+        Raises:
+            Error: If the series format is not 'l' (Int64).
+        """
         if self.format != "l":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int64 ('l')")
         return self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
 
     def as_int32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Int32 buffer.
+
+        Returns:
+            Pointer to contiguous 32-bit signed integer array.
+
+        Raises:
+            Error: If the series format is not 'i' (Int32).
+        """
         if self.format != "i":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int32 ('i')")
         return self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
 
     def get_float64(self, idx: Int) raises -> Float64:
+        """Returns the Float64 scalar at the specified row index.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Float64 value at index.
+
+        Raises:
+            Error: If the series is not Float64 or index is invalid.
+        """
         var ptr = self.as_float64_ptr()
         return ptr[unsafe_offset=idx]
 
     def get_float32(self, idx: Int) raises -> Float32:
+        """Returns the Float32 scalar at the specified row index.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Float32 value at index.
+
+        Raises:
+            Error: If the series is not Float32 or index is invalid.
+        """
         var ptr = self.as_float32_ptr()
         return ptr[unsafe_offset=idx]
 
     def get_int64(self, idx: Int) raises -> Int64:
+        """Returns the Int64 scalar at the specified row index.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Int64 value at index.
+
+        Raises:
+            Error: If the series is not Int64 or index is invalid.
+        """
         var ptr = self.as_int64_ptr()
         return ptr[unsafe_offset=idx]
 
     def get_int32(self, idx: Int) raises -> Int32:
+        """Returns the Int32 scalar at the specified row index.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Int32 value at index.
+
+        Raises:
+            Error: If the series is not Int32 or index is invalid.
+        """
         var ptr = self.as_int32_ptr()
         return ptr[unsafe_offset=idx]
 
     def get_string(self, idx: Int) raises -> String:
+        """Returns the string at the specified row index.
+
+        Supports Utf8 ('u'), LargeUtf8 ('U'), and Arrow StringView ('vu').
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Decoded UTF-8 string.
+
+        Raises:
+            Error: If the series is not a string column format.
+        """
         if self.format != "u" and self.format != "U" and self.format != "vu":
             raise Error("Series '" + self.name + "' is not a string column (format '" + self.format + "')")
         return self.get_as_string(idx)
 
     def get_as_string(self, idx: Int) -> String:
+        """Formats the value at index as a string across all supported data types.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            String representation of the element.
+        """
         if self.format == "g":
             var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]()
             return String(ptr[unsafe_offset=idx])
@@ -116,6 +235,14 @@ struct Series(Copyable, Movable):
             return "<format " + self.format + ">"
 
     def sum_float64(self) raises -> Float64:
+        """Computes the sum of all elements using SIMD vector loads.
+
+        Returns:
+            Total sum as Float64.
+
+        Raises:
+            Error: If the series format is not Float64 ('g').
+        """
         var ptr = self.as_float64_ptr()
         var n = self.length
         var total = Float64(0.0)
@@ -129,6 +256,14 @@ struct Series(Copyable, Movable):
         return total
 
     def sum_int64(self) raises -> Int64:
+        """Computes the sum of all elements using SIMD vector loads.
+
+        Returns:
+            Total sum as Int64.
+
+        Raises:
+            Error: If the series format is not Int64 ('l').
+        """
         var ptr = self.as_int64_ptr()
         var n = self.length
         var total = Int64(0)
@@ -142,16 +277,43 @@ struct Series(Copyable, Movable):
         return total
 
     def mean_float64(self) raises -> Float64:
+        """Computes the arithmetic mean of the series.
+
+        Returns:
+            Arithmetic mean as Float64, or 0.0 if empty.
+
+        Raises:
+            Error: If the series format is not Float64 ('g').
+        """
         if self.length == 0:
             return 0.0
         return self.sum_float64() / Float64(self.length)
 
     def mean_int64(self) raises -> Float64:
+        """Computes the arithmetic mean of the series.
+
+        Returns:
+            Arithmetic mean as Float64, or 0.0 if empty.
+
+        Raises:
+            Error: If the series format is not Int64 ('l').
+        """
         if self.length == 0:
             return 0.0
         return Float64(self.sum_int64()) / Float64(self.length)
 
 struct DataFrame(Movable, Writable):
+    """An in-memory columnar table backed by an Apache Arrow StructArray.
+
+    Traits:
+        Movable: Supports move lifecycle semantics.
+        Writable: Implements terminal pretty-printing via write_to.
+
+    Fields:
+        _table: RAII manager for underlying ArrowArray and ArrowSchema pointers.
+        _col_names: Ordered list of column names.
+        _col_formats: Ordered list of Arrow format type codes for each column.
+    """
     var _table: ManagedArrowTable
     var _col_names: List[String]
     var _col_formats: List[String]
@@ -172,6 +334,17 @@ struct DataFrame(Movable, Writable):
 
     @staticmethod
     def read_csv(path: String) raises -> DataFrame:
+        """Reads a CSV file into a DataFrame using the Polars multithreaded reader.
+
+        Args:
+            path: Filesystem path to the CSV file.
+
+        Returns:
+            DataFrame populated with columns exported via the Arrow C Data Interface.
+
+        Raises:
+            Error: If the file path is invalid, parsing fails, or allocation fails.
+        """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.read_csv(path, array_ptr, schema_ptr)
@@ -180,6 +353,17 @@ struct DataFrame(Movable, Writable):
 
     @staticmethod
     def read_parquet(path: String) raises -> DataFrame:
+        """Reads an Apache Parquet file into a DataFrame using the Polars reader.
+
+        Args:
+            path: Filesystem path to the Parquet file.
+
+        Returns:
+            DataFrame populated with columns exported via the Arrow C Data Interface.
+
+        Raises:
+            Error: If the file cannot be opened, metadata is corrupted, or parsing fails.
+        """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.read_parquet(path, array_ptr, schema_ptr)
@@ -188,6 +372,22 @@ struct DataFrame(Movable, Writable):
 
     @staticmethod
     def sql(query: String, table_name: String, file_path: String) raises -> DataFrame:
+        """Executes a SQL query against a dataset using the Polars SQLContext engine.
+
+        Registers the dataset as a LazyFrame, applies query optimizations, and
+        collects the result into an Arrow table.
+
+        Args:
+            query: SQL query string (e.g. "SELECT col_a, AVG(col_b) FROM tbl GROUP BY col_a").
+            table_name: Table identifier to reference in the FROM clause.
+            file_path: Filesystem path to the source CSV or Parquet file.
+
+        Returns:
+            DataFrame containing query results.
+
+        Raises:
+            Error: On invalid SQL syntax, plan execution error, or read failure.
+        """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.sql_query(query, table_name, file_path, array_ptr, schema_ptr)
@@ -195,37 +395,100 @@ struct DataFrame(Movable, Writable):
         return DataFrame(managed^)
 
     def num_rows(self) -> Int:
+        """Returns the number of rows in the table.
+
+        Returns:
+            Total row count as an Int.
+        """
         return self._table.num_rows()
 
     def height(self) -> Int:
+        """Returns the number of rows in the table.
+
+        Returns:
+            Total row count as an Int.
+        """
         return self._table.num_rows()
 
     def num_cols(self) -> Int:
+        """Returns the number of columns in the table.
+
+        Returns:
+            Total column count as an Int.
+        """
         return len(self._col_names)
 
     def width(self) -> Int:
+        """Returns the number of columns in the table.
+
+        Returns:
+            Total column count as an Int.
+        """
         return len(self._col_names)
 
     def shape(self) -> Tuple[Int, Int]:
+        """Returns table dimensions as a (height, width) tuple.
+
+        Returns:
+            Tuple containing (num_rows, num_cols).
+        """
         return (self.height(), self.width())
 
     def column_names(self) -> List[String]:
+        """Returns the ordered list of column names in the table.
+
+        Returns:
+            List of column name strings.
+        """
         var res = List[String]()
         for i in range(len(self._col_names)):
             res.append(self._col_names[i])
         return res^
 
     def column_index(self, name: String) raises -> Int:
+        """Finds the zero-based column index for a given column name.
+
+        Args:
+            name: Column name to search for.
+
+        Returns:
+            Zero-based integer column index.
+
+        Raises:
+            Error: If no column matches the provided name.
+        """
         for i in range(len(self._col_names)):
             if self._col_names[i] == name:
                 return i
         raise Error("Column not found: " + name)
 
     def column(self, name: String) raises -> Series:
+        """Extracts a column Series by name with zero memory copies.
+
+        Args:
+            name: Column name to look up.
+
+        Returns:
+            Series view over the column's Arrow buffers.
+
+        Raises:
+            Error: If the column name is not found.
+        """
         var idx = self.column_index(name)
         return self.column(idx)
 
     def column(self, idx: Int) raises -> Series:
+        """Extracts a column Series by index with zero memory copies.
+
+        Args:
+            idx: Zero-based column index.
+
+        Returns:
+            Series view over the column's Arrow buffers.
+
+        Raises:
+            Error: If the index is out of range [0, num_cols - 1].
+        """
         if idx < 0 or idx >= len(self._col_names):
             raise Error("Column index out of range: " + String(idx))
 
@@ -247,12 +510,39 @@ struct DataFrame(Movable, Writable):
         )
 
     def __getitem__(self, name: String) raises -> Series:
+        """Subscript indexing operator to retrieve a column by name.
+
+        Args:
+            name: Column name.
+
+        Returns:
+            Series view over the column's Arrow buffers.
+
+        Raises:
+            Error: If the column name does not exist.
+        """
         return self.column(name)
 
     def __getitem__(self, idx: Int) raises -> Series:
+        """Subscript indexing operator to retrieve a column by index.
+
+        Args:
+            idx: Zero-based column index.
+
+        Returns:
+            Series view over the column's Arrow buffers.
+
+        Raises:
+            Error: If index is out of bounds.
+        """
         return self.column(idx)
 
     def write_to(self, mut writer: Some[Writer]):
+        """Formats the DataFrame as an aligned ASCII preview table for terminal output.
+
+        Args:
+            writer: Output stream receiving formatted characters.
+        """
         writer.write("shape: (", self.height(), ", ", self.width(), ")\n")
         var col_count = self.width()
         for c in range(col_count):
