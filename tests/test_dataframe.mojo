@@ -2,7 +2,7 @@ from std.testing import TestSuite, assert_equal, assert_true, assert_almost_equa
 from molars import DataFrame, Series
 
 def test_csv() raises:
-    var df = DataFrame.read_csv("scratch/sample.csv")
+    var df = DataFrame.read_csv("tests/sample.csv")
     var shape = df.shape()
     assert_equal(shape[0], 5)
     assert_equal(shape[1], 4)
@@ -20,7 +20,7 @@ def test_csv() raises:
     _ = df
 
 def test_parquet() raises:
-    var df = DataFrame.read_parquet("scratch/sample.parquet")
+    var df = DataFrame.read_parquet("tests/sample.parquet")
     var shape = df.shape()
     assert_equal(shape[0], 5)
     assert_equal(shape[1], 4)
@@ -32,7 +32,7 @@ def test_sql() raises:
     var df = DataFrame.sql(
         "SELECT name, score FROM sample WHERE score > 85.0",
         "sample",
-        "scratch/sample.parquet",
+        "tests/sample.parquet",
     )
     assert_equal(df.height(), 3)
     assert_equal(df.width(), 2)

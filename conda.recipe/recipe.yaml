@@ -1,5 +1,5 @@
 context:
-  name: molars
+  name: polars-mojo
   version: "0.1.0"
   mojo_version: "=1.0.0"
 
@@ -8,11 +8,8 @@ package:
   version: ${{ version }}
 
 source:
-  # For local testing in this repo:
-  path: ..
-  # When submitting PR to modular-community, change to:
-  # - git: https://github.com/ethqnol/polars-mojo.git
-  #   rev: v${{ version }}
+  - git: https://github.com/ethqnol/polars-mojo.git
+    rev: c04e28fed3b7eb83c6208aaad7cf14926381fed9
 
 build:
   number: 0
@@ -62,13 +59,8 @@ tests:
       - test -f ${{ PREFIX }}/lib/libpolars_ffi.so
       - test -f ${{ PREFIX }}/lib/libpolars_ffi.a
       - test -f ${{ PREFIX }}/lib/mojo/molars.mojoc
-      - |
-        cat << 'EOF' > smoke_test.mojo
-        from molars import DataFrame
-        fn main():
-            _ = DataFrame
-        EOF
-      - mojo run -Xlinker -L${{ PREFIX }}/lib -Xlinker -lpolars_ffi smoke_test.mojo
+      - mojo run -Xlinker -L${{ PREFIX }}/lib -Xlinker -lpolars_ffi tests/test_arrow_abi.mojo
+      - mojo run -Xlinker -L${{ PREFIX }}/lib -Xlinker -lpolars_ffi tests/test_dataframe.mojo
 
 about:
   homepage: https://github.com/ethqnol/polars-mojo

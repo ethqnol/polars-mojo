@@ -17,3 +17,7 @@ scratch/
 # Agent metadata
 .agents/
 
+# Conda build recipe
+conda.recipe/
+
+
