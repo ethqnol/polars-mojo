@@ -1,5 +1,6 @@
 from std.ffi import external_call, c_char, CStringSlice
 from std.memory import Pointer
+from std.memory.alloc import unsafe_alloc
 from molars.arrow_abi import ArrowArray, ArrowSchema
 
 struct MolarsBridge:
@@ -75,7 +76,7 @@ struct MolarsBridge:
 
     @staticmethod
     def get_last_error() -> String:
-        var buf = alloc[c_char](1024)
+        var buf = unsafe_alloc[c_char](1024)
         var n = external_call["molars_get_last_error", Int32](buf, 1024)
         if n > 0:
             var res = String(CStringSlice(unsafe_from_ptr=buf))
@@ -83,4 +84,3 @@ struct MolarsBridge:
             return res
         buf.unsafe_free()
         return "Unknown error"
-

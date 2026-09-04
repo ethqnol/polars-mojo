@@ -1,5 +1,6 @@
 from std.algorithm import vectorize
 from std.memory import Pointer
+from std.memory.alloc import unsafe_alloc
 from molars.arrow_abi import ArrowArray, ArrowSchema, ManagedArrowTable, null_ptr
 from molars.bridge import MolarsBridge
 
@@ -50,6 +51,11 @@ struct Series(Copyable, Movable):
     def get_int32(self, idx: Int) raises -> Int32:
         var ptr = self.as_int32_ptr()
         return ptr[unsafe_offset=idx]
+
+    def get_string(self, idx: Int) raises -> String:
+        if self.format != "u" and self.format != "U" and self.format != "vu":
+            raise Error("Series '" + self.name + "' is not a string column (format '" + self.format + "')")
+        return self.get_as_string(idx)
 
     def get_as_string(self, idx: Int) -> String:
         if self.format == "g":
@@ -166,24 +172,24 @@ struct DataFrame(Movable, Writable):
 
     @staticmethod
     def read_csv(path: String) raises -> DataFrame:
-        var array_ptr = alloc[ArrowArray](1)
-        var schema_ptr = alloc[ArrowSchema](1)
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.read_csv(path, array_ptr, schema_ptr)
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
     @staticmethod
     def read_parquet(path: String) raises -> DataFrame:
-        var array_ptr = alloc[ArrowArray](1)
-        var schema_ptr = alloc[ArrowSchema](1)
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.read_parquet(path, array_ptr, schema_ptr)
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
     @staticmethod
     def sql(query: String, table_name: String, file_path: String) raises -> DataFrame:
-        var array_ptr = alloc[ArrowArray](1)
-        var schema_ptr = alloc[ArrowSchema](1)
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.sql_query(query, table_name, file_path, array_ptr, schema_ptr)
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)

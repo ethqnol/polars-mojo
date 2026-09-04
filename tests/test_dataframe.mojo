@@ -1,32 +1,31 @@
+from std.testing import TestSuite, assert_equal, assert_true, assert_almost_equal
 from molars import DataFrame, Series
 
 def test_csv() raises:
     var df = DataFrame.read_csv("scratch/sample.csv")
     var shape = df.shape()
-    if shape[0] != 5 or shape[1] != 4:
-        raise Error("Expected shape (5, 4), got (" + String(shape[0]) + ", " + String(shape[1]) + ")")
+    assert_equal(shape[0], 5)
+    assert_equal(shape[1], 4)
 
-    var score_sum = df["score"].sum_float64()
-    if score_sum < 435.49 or score_sum > 435.51:
-        raise Error("score sum mismatch")
+    var score_col = df["score"]
+    assert_equal(score_col.len(), 5)
+    assert_almost_equal(score_col.sum_float64(), 435.5, atol=0.01)
 
-    var count_sum = df["count"].sum_int64()
-    if count_sum != 150:
-        raise Error("count sum mismatch: " + String(count_sum))
+    var count_col = df["count"]
+    assert_equal(count_col.sum_int64(), 150)
 
-    if df["name"].get_as_string(0) != "Alice":
-        raise Error("expected Alice, got " + df["name"].get_as_string(0))
+    var name_col = df["name"]
+    assert_equal(name_col.get_string(0), "Alice")
+    assert_equal(name_col.get_string(2), "Charlie")
     _ = df
 
 def test_parquet() raises:
     var df = DataFrame.read_parquet("scratch/sample.parquet")
     var shape = df.shape()
-    if shape[0] != 5 or shape[1] != 4:
-        raise Error("Expected shape (5, 4), got (" + String(shape[0]) + ", " + String(shape[1]) + ")")
+    assert_equal(shape[0], 5)
+    assert_equal(shape[1], 4)
 
-    var score_sum = df["score"].sum_float64()
-    if score_sum < 435.49 or score_sum > 435.51:
-        raise Error("parquet score sum mismatch")
+    assert_almost_equal(df["score"].sum_float64(), 435.5, atol=0.01)
     _ = df
 
 def test_sql() raises:
@@ -35,14 +34,12 @@ def test_sql() raises:
         "sample",
         "scratch/sample.parquet",
     )
-    if df.height() != 3 or df.width() != 2:
-        raise Error("expected shape (3, 2), got (" + String(df.height()) + ", " + String(df.width()) + ")")
+    assert_equal(df.height(), 3)
+    assert_equal(df.width(), 2)
+    assert_equal(df["name"].get_string(0), "Alice")
+    assert_equal(df["name"].get_string(1), "David")
+    assert_equal(df["name"].get_string(2), "Eve")
     _ = df
 
 def main() raises:
-    test_csv()
-    print("test_csv ... ok")
-    test_parquet()
-    print("test_parquet ... ok")
-    test_sql()
-    print("test_sql ... ok")
+    TestSuite.discover_tests[__functions_in_module()]().run()
