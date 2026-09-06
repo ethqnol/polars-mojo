@@ -269,6 +269,103 @@ Retrieves the Arrow format code of the column at col_idx.
 
 ---
 
+##### `def write_csv(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], path: String) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `path` (`String`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def write_parquet(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], path: String) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `path` (`String`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def slice_df(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], offset: Int64, length: Int, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `offset` (`Int64`)
+- `length` (`Int`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def select_columns(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_names_csv: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_names_csv` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def drop_columns(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_names_csv: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_names_csv` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def rename_column(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], old_name: String, new_name: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `old_name` (`String`)
+- `new_name` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def groupby_agg(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], keys_csv: String, aggs_csv: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `keys_csv` (`String`)
+- `aggs_csv` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
 ##### `def release_array(array: Pointer[ArrowArray, MutUntrackedOrigin])`
 
 **Arguments:**
@@ -495,6 +592,165 @@ Extracts a column Series by index with zero memory copies.
 
 ---
 
+##### `def write_csv(self, path: String)`
+
+Writes the DataFrame to a CSV file.
+
+**Arguments:**
+
+- `path` (`String`): Target filesystem path for the CSV output.
+
+**Raises:** Error: If writing to the file fails.
+
+---
+
+##### `def write_parquet(self, path: String)`
+
+Writes the DataFrame to an Apache Parquet file.
+
+**Arguments:**
+
+- `path` (`String`): Target filesystem path for the Parquet output.
+
+**Raises:** Error: If writing to the file fails.
+
+---
+
+##### `def head(self, n: Int = Int(5)) -> Self`
+
+Returns the first n rows of the DataFrame.
+
+**Arguments:**
+
+- `n` (`Int`): Number of rows to return (default 5).
+
+**Returns:** `Self` - A new DataFrame containing the sliced rows.
+
+---
+
+##### `def tail(self, n: Int = Int(5)) -> Self`
+
+Returns the last n rows of the DataFrame.
+
+**Arguments:**
+
+- `n` (`Int`): Number of rows to return (default 5).
+
+**Returns:** `Self` - A new DataFrame containing the sliced rows.
+
+---
+
+##### `def select(self, columns: List[String]) -> Self`
+
+Projects a subset of columns from the DataFrame.
+
+**Arguments:**
+
+- `columns` (`List[String]`): List of column names to select.
+
+**Returns:** `Self` - A new DataFrame containing only the selected columns.
+
+---
+
+##### `def drop(self, columns: List[String]) -> Self`
+
+Returns a DataFrame without the specified columns.
+
+**Arguments:**
+
+- `columns` (`List[String]`): List of column names to exclude.
+
+**Returns:** `Self` - A new DataFrame without the specified columns.
+
+---
+
+##### `def rename(self, old_name: String, new_name: String) -> Self`
+
+Renames a column in the DataFrame.
+
+**Arguments:**
+
+- `old_name` (`String`): Existing column name.
+- `new_name` (`String`): New column name.
+
+**Returns:** `Self` - A new DataFrame with the column renamed.
+
+---
+
+##### `def group_by(self, keys: List[String]) -> GroupBy`
+
+Groups the DataFrame by the specified column names.
+
+**Arguments:**
+
+- `keys` (`List[String]`): List of column names to group by.
+
+**Returns:** `GroupBy` - A GroupBy object to perform aggregations.
+
+---
+
+##### `def group_by(self, key: String) -> GroupBy`
+
+Groups the DataFrame by a single column name or comma-separated column names.
+
+**Arguments:**
+
+- `key` (`String`): Column name or comma-separated column names to group by.
+
+**Returns:** `GroupBy` - A GroupBy object to perform aggregations.
+
+---
+
+##### `def group_by(self, keys: String, aggs: String) -> Self`
+
+Directly groups and aggregates the DataFrame.
+
+**Arguments:**
+
+- `keys` (`String`): Grouping column names (comma-separated).
+- `aggs` (`String`): Aggregation specifications (comma-separated, e.g. 'sales:sum,rating:mean').
+
+**Returns:** `Self` - An aggregated DataFrame.
+
+---
+
+##### `def groupby(self, keys: List[String]) -> GroupBy`
+
+Alias for group_by.
+
+**Arguments:**
+
+- `keys` (`List[String]`)
+
+**Returns:** `GroupBy`
+
+---
+
+##### `def groupby(self, key: String) -> GroupBy`
+
+Alias for group_by.
+
+**Arguments:**
+
+- `key` (`String`)
+
+**Returns:** `GroupBy`
+
+---
+
+##### `def groupby(self, keys: String, aggs: String) -> Self`
+
+Alias for group_by.
+
+**Arguments:**
+
+- `keys` (`String`)
+- `aggs` (`String`)
+
+**Returns:** `Self`
+
+---
+
 ##### `def write_to(self, mut writer: T)`
 
 Formats the DataFrame as an aligned ASCII preview table for terminal output.
@@ -502,6 +758,61 @@ Formats the DataFrame as an aligned ASCII preview table for terminal output.
 **Arguments:**
 
 - `writer` (`T`): Output stream receiving formatted characters.
+
+---
+
+### `struct GroupBy`
+
+**Implemented Traits**: `AnyType, Copyable, Deinitable, Movable`
+
+An intermediate groupby grouping object.
+
+Allows executing aggregations over grouped columns using Polars' multithreaded engine.
+
+#### Methods
+
+##### `def agg(self, aggs_csv: String) -> DataFrame`
+
+Applies aggregations to the grouped DataFrame.
+
+**Arguments:**
+
+- `aggs_csv` (`String`): Comma-separated list of aggregations in 'col:op' or 'col:op:alias' format.
+         Supported operations: 'sum', 'mean', 'avg', 'min', 'max', 'count', 'std', 'var', 'first', 'last'.
+
+**Returns:** `DataFrame` - An aggregated DataFrame.
+
+---
+
+##### `def sum(self, cols_csv: String) -> DataFrame`
+
+Computes sum for specified columns in the group.
+
+**Arguments:**
+
+- `cols_csv` (`String`)
+
+**Returns:** `DataFrame`
+
+---
+
+##### `def mean(self, cols_csv: String) -> DataFrame`
+
+Computes mean for specified columns in the group.
+
+**Arguments:**
+
+- `cols_csv` (`String`)
+
+**Returns:** `DataFrame`
+
+---
+
+##### `def count(self) -> DataFrame`
+
+Counts rows per group using the first key column.
+
+**Returns:** `DataFrame`
 
 ---
 
@@ -527,6 +838,122 @@ Fields:
     buffers: Pointer array to underlying Arrow buffers.
 
 #### Methods
+
+##### `def __add__(self, other: Self) -> List[Float64]`
+
+Element-wise addition with another Series.
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __add__(self, scalar: Float64) -> List[Float64]`
+
+Scalar addition broadcasting across the Series.
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __sub__(self, other: Self) -> List[Float64]`
+
+Element-wise subtraction with another Series.
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __sub__(self, scalar: Float64) -> List[Float64]`
+
+Scalar subtraction broadcasting across the Series.
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __mul__(self, other: Self) -> List[Float64]`
+
+Element-wise multiplication with another Series.
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __mul__(self, scalar: Float64) -> List[Float64]`
+
+Scalar multiplication broadcasting across the Series.
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __truediv__(self, other: Self) -> List[Float64]`
+
+Element-wise division with another Series.
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __truediv__(self, scalar: Float64) -> List[Float64]`
+
+Scalar division broadcasting across the Series.
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __radd__(self, scalar: Float64) -> List[Float64]`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def __rmul__(self, scalar: Float64) -> List[Float64]`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
 
 ##### `def len(self) -> Int`
 
@@ -697,5 +1124,233 @@ Computes the arithmetic mean of the series.
 **Returns:** `Float64` - Arithmetic mean as Float64, or 0.0 if empty.
 
 **Raises:** Error: If the series format is not Int64 ('l').
+
+---
+
+##### `def get_float(self, idx: Int) -> Float64`
+
+Returns the element at idx as a Float64 scalar.
+
+**Arguments:**
+
+- `idx` (`Int`): Zero-based row index.
+
+**Returns:** `Float64` - Float64 scalar.
+
+**Raises:** Error: If the format is not convertible to Float64.
+
+---
+
+##### `def sum_float32(self) -> Float32`
+
+Computes the sum of all elements using SIMD vector loads for Float32.
+
+**Returns:** `Float32`
+
+---
+
+##### `def sum_int32(self) -> Int32`
+
+Computes the sum of all elements using SIMD vector loads for Int32.
+
+**Returns:** `Int32`
+
+---
+
+##### `def mean_float32(self) -> Float32`
+
+Computes the arithmetic mean for Float32 series.
+
+**Returns:** `Float32`
+
+---
+
+##### `def mean_int32(self) -> Float64`
+
+Computes the arithmetic mean for Int32 series.
+
+**Returns:** `Float64`
+
+---
+
+##### `def min_float64(self) -> Float64`
+
+Computes the minimum value in the Series using SIMD.
+
+**Returns:** `Float64`
+
+---
+
+##### `def max_float64(self) -> Float64`
+
+Computes the maximum value in the Series using SIMD.
+
+**Returns:** `Float64`
+
+---
+
+##### `def min_int64(self) -> Int64`
+
+Computes the minimum value in the Series using SIMD.
+
+**Returns:** `Int64`
+
+---
+
+##### `def max_int64(self) -> Int64`
+
+Computes the maximum value in the Series using SIMD.
+
+**Returns:** `Int64`
+
+---
+
+##### `def min_float32(self) -> Float32`
+
+Computes the minimum value in the Float32 Series using SIMD.
+
+**Returns:** `Float32`
+
+---
+
+##### `def max_float32(self) -> Float32`
+
+Computes the maximum value in the Float32 Series using SIMD.
+
+**Returns:** `Float32`
+
+---
+
+##### `def min_int32(self) -> Int32`
+
+Computes the minimum value in the Int32 Series using SIMD.
+
+**Returns:** `Int32`
+
+---
+
+##### `def max_int32(self) -> Int32`
+
+Computes the maximum value in the Int32 Series using SIMD.
+
+**Returns:** `Int32`
+
+---
+
+##### `def var_float64(self, ddof: Int = Int(1)) -> Float64`
+
+Computes sample variance of the Float64 Series using SIMD.
+
+**Arguments:**
+
+- `ddof` (`Int`)
+
+**Returns:** `Float64`
+
+---
+
+##### `def std_float64(self, ddof: Int = Int(1)) -> Float64`
+
+Computes standard deviation of the Float64 Series using SIMD.
+
+**Arguments:**
+
+- `ddof` (`Int`)
+
+**Returns:** `Float64`
+
+---
+
+##### `def sum(self) -> Float64`
+
+Dynamically computes the sum across any numeric Series type.
+
+**Returns:** `Float64`
+
+---
+
+##### `def mean(self) -> Float64`
+
+Dynamically computes the mean across any numeric Series type.
+
+**Returns:** `Float64`
+
+---
+
+##### `def min(self) -> Float64`
+
+Dynamically computes the min across any numeric Series type.
+
+**Returns:** `Float64`
+
+---
+
+##### `def max(self) -> Float64`
+
+Dynamically computes the max across any numeric Series type.
+
+**Returns:** `Float64`
+
+---
+
+##### `def var(self, ddof: Int = Int(1)) -> Float64`
+
+Dynamically computes variance across Float64 series.
+
+**Arguments:**
+
+- `ddof` (`Int`)
+
+**Returns:** `Float64`
+
+---
+
+##### `def std(self, ddof: Int = Int(1)) -> Float64`
+
+Dynamically computes standard deviation across Float64 series.
+
+**Arguments:**
+
+- `ddof` (`Int`)
+
+**Returns:** `Float64`
+
+---
+
+##### `def apply_float64[Func: def(Float64) raises -> Float64](self, func: Func) -> List[Float64]`
+
+Applies a function or closure element-wise over the Float64 Series.
+
+**Arguments:**
+
+- `func` (`Func`): A function or closure mapping Float64 -> Float64 (can raise).
+
+**Returns:** `List[Float64]` - A List[Float64] containing the transformed values.
+
+---
+
+##### `def apply_int64[Func: def(Int64) raises -> Int64](self, func: Func) -> List[Int64]`
+
+Applies a function or closure element-wise over the Int64 Series.
+
+**Arguments:**
+
+- `func` (`Func`): A function or closure mapping Int64 -> Int64 (can raise).
+
+**Returns:** `List[Int64]` - A List[Int64] containing the transformed values.
+
+---
+
+##### `def apply[Func: def(Float64) raises -> Float64](self, func: Func) -> List[Float64]`
+
+Dynamically applies a function or closure element-wise over numeric column values.
+
+Converts non-Float64 numeric types to Float64 dynamically.
+
+**Arguments:**
+
+- `func` (`Func`): A function or closure mapping Float64 -> Float64 (can raise).
+
+**Returns:** `List[Float64]` - A List[Float64] containing the transformed values.
 
 ---

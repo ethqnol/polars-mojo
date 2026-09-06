@@ -17,17 +17,17 @@ Native Mojo bindings for the Polars query engine via the Apache Arrow C Data Int
 ## Roadmap
 
 ### Short-Term Priorities
-- [ ] **Writers / Exporters**:
+- [x] **Writers / Exporters**:
   - `DataFrame.write_parquet(path)`
   - `DataFrame.write_csv(path)`
-- [ ] **Table Slicing & Projection**:
+- [x] **Table Slicing & Projection**:
   - `df.head(n)` and `df.tail(n)`
   - `df.select(columns)` and `df.drop(columns)`
-  - `df.rename(mapping)`
-- [ ] **Additional SIMD Reductions**:
-  - `min()` and `max()`
-  - `std()` and `var()`
-  - Element-wise series arithmetic (`col_a + col_b`, scalar broadcasting)
+  - `df.rename(old_name, new_name)`
+- [x] **Additional SIMD Reductions & Arithmetic**:
+  - `min()` and `max()` (`min_float64`, `max_float64`, `min_int64`, `max_int64`, etc.)
+  - `std()` and `var()` (`std_float64`, `var_float64`)
+  - Element-wise series arithmetic (`col_a + col_b`, scalar broadcasting: `+`, `-`, `*`, `/`)
 
 ### Medium Priorities
 - [ ] **In-Memory Table Operations**:

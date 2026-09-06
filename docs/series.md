@@ -14,6 +14,7 @@ struct Series(Copyable, Movable):
     var name: String
     var format: String
     var length: Int
+    var offset: Int
     var null_count: Int
     var n_buffers: Int
     var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]
@@ -29,6 +30,7 @@ struct Series(Copyable, Movable):
 - `name`: Column name.
 - `format`: Arrow C format string code (`"g"`, `"f"`, `"l"`, `"i"`, `"u"`, `"U"`, `"vu"`).
 - `length`: Number of elements in the column.
+- `offset`: Slice offset into the underlying Arrow buffer (0 for un-sliced series).
 - `null_count`: Number of nulls in the column.
 - `n_buffers`: Number of backing Arrow buffers.
 - `buffers`: Array of pointers to data, offset, and validity bitmap buffers.
@@ -37,7 +39,7 @@ struct Series(Copyable, Movable):
 
 ## Buffer Pointer Access
 
-For maximum performance, you can retrieve a typed pointer to the contiguous memory buffer. This enables custom loops, GPU transfers, or low-level SIMD operations without overhead.
+For maximum performance, you can retrieve a typed pointer to the contiguous memory buffer. This accounts for any slice offset and enables custom loops, GPU transfers, or low-level SIMD operations without overhead.
 
 ### `as_float64_ptr`
 
@@ -92,6 +94,14 @@ def get_int32(self, idx: Int) raises -> Int32
 
 Returns the scalar at `idx`. Raises `Error` if the column type does not match the requested type.
 
+### Generic Numeric Getter
+
+```mojo
+def get_float(self, idx: Int) raises -> Float64
+```
+
+Convenience getter converting any numeric column element (`Float64`, `Float32`, `Int64`, `Int32`) to `Float64`.
+
 ### String Getters
 
 ```mojo
@@ -111,21 +121,140 @@ Formats any element as a `String` regardless of underlying column format (used b
 
 ---
 
-## SIMD Vector Reductions
+## Dynamic Dispatch Reductions
 
-`Series` implements hardware-vectorized reductions via `std.algorithm.vectorize` and `unsafe_load`:
+`Series` provides ergonomic reduction methods that dynamically inspect the column format and execute optimized SIMD kernels:
+
+```mojo
+def sum(self) raises -> Float64
+def mean(self) raises -> Float64
+def min(self) raises -> Float64
+def max(self) raises -> Float64
+def var(self, ddof: Int = 1) raises -> Float64
+def std(self, ddof: Int = 1) raises -> Float64
+```
+
+### Example
+
+```mojo
+var price = df["price"]
+print("Sum:", price.sum())
+print("Mean:", price.mean())
+print("Min:", price.min())
+print("Max:", price.max())
+print("Std Dev:", price.std())
+```
+
+---
+
+## Type-Specific SIMD Reductions
+
+When the exact data type is known at compile time, type-specific reductions avoid dynamic format checking and execute SIMD loops directly via `std.algorithm.vectorize` and `unsafe_load`:
+
+### 64-bit Numeric Reductions
 
 ```mojo
 def sum_float64(self) raises -> Float64
 def sum_int64(self) raises -> Int64
 def mean_float64(self) raises -> Float64
 def mean_int64(self) raises -> Float64
+def min_float64(self) raises -> Float64
+def min_int64(self) raises -> Int64
+def max_float64(self) raises -> Float64
+def max_int64(self) raises -> Int64
+def var_float64(self, ddof: Int = 1) raises -> Float64
+def std_float64(self, ddof: Int = 1) raises -> Float64
+```
+
+### 32-bit Numeric Reductions
+
+```mojo
+def sum_float32(self) raises -> Float32
+def sum_int32(self) raises -> Int32
+def mean_float32(self) raises -> Float32
+def mean_int32(self) raises -> Float64
+def min_float32(self) raises -> Float32
+def min_int32(self) raises -> Int32
+def max_float32(self) raises -> Float32
+def max_int32(self) raises -> Int32
+```
+
+---
+
+## Vectorized Arithmetic & Broadcasting
+
+`Series` overloads standard arithmetic operators (`+`, `-`, `*`, `/`) to perform element-wise calculations powered by SIMD vectorization:
+
+### Series-Series Operations
+
+```mojo
+def __add__(self, other: Series) raises -> List[Float64]
+def __sub__(self, other: Series) raises -> List[Float64]
+def __mul__(self, other: Series) raises -> List[Float64]
+def __truediv__(self, other: Series) raises -> List[Float64]
+```
+
+### Scalar Broadcasting
+
+```mojo
+def __add__(self, scalar: Float64) raises -> List[Float64]
+def __radd__(self, scalar: Float64) raises -> List[Float64]
+def __sub__(self, scalar: Float64) raises -> List[Float64]
+def __mul__(self, scalar: Float64) raises -> List[Float64]
+def __rmul__(self, scalar: Float64) raises -> List[Float64]
+def __truediv__(self, scalar: Float64) raises -> List[Float64]
 ```
 
 ### Example
 
 ```mojo
-var price_col = df["price"]
-var total = price_col.sum_float64()
-var average = price_col.mean_float64()
+var a = df["col_a"]
+var b = df["col_b"]
+
+# Series + Series
+var added = a + b
+
+# Scalar multiplication broadcasting
+var scaled = a * 10.0
+
+# Complex expression
+var normalized = (a - 5.0) / 2.0
+```
+
+---
+
+## Element-Wise Functions (`apply`)
+
+`Series` provides `.apply()` methods allowing you to execute arbitrary pure-Mojo closures or user-defined functions (UDFs) over Arrow data with **zero FFI overhead**:
+
+### Methods
+
+```mojo
+def apply_float64[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]
+def apply_int64[Func: def(Int64) raises -> Int64](self, func: Func) raises -> List[Int64]
+def apply[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]
+```
+
+### Features
+- **Zero FFI Cost**: Evaluates directly across contiguous native Arrow memory buffers.
+- **Unified Closures**: Supports stateful captures (`{imm x}`, `{var y}`), raising and non-raising functions.
+- **Dynamic Dispatch**: `.apply()` dynamically converts any numeric column elements to `Float64`.
+
+### Example
+
+```mojo
+var price = df["price"]
+
+# 1. Custom mathematical function
+def square_fn(x: Float64) -> Float64:
+    return x * x
+
+var squared = price.apply_float64(square_fn)
+
+# 2. Stateful closure capturing variables
+var multiplier = 1.15
+def vat_fn(x: Float64) raises {imm multiplier} -> Float64:
+    return x * multiplier
+
+var taxed = price.apply(vat_fn)
 ```

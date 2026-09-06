@@ -26,6 +26,7 @@ struct Series(Copyable, Movable):
     var name: String
     var format: String
     var length: Int
+    var offset: Int
     var null_count: Int
     var n_buffers: Int
     var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]
@@ -49,7 +50,7 @@ struct Series(Copyable, Movable):
         """
         if self.format != "g":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float64 ('g')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]()
+        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]().unsafe_offset(self.offset)
 
     def as_float32_ptr(self) raises -> Pointer[Float32, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Float32 buffer.
@@ -62,7 +63,7 @@ struct Series(Copyable, Movable):
         """
         if self.format != "f":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float32 ('f')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float32]()
+        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float32]().unsafe_offset(self.offset)
 
     def as_int64_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Int64 buffer.
@@ -75,7 +76,7 @@ struct Series(Copyable, Movable):
         """
         if self.format != "l":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int64 ('l')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
+        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]().unsafe_offset(self.offset)
 
     def as_int32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Int32 buffer.
@@ -88,7 +89,7 @@ struct Series(Copyable, Movable):
         """
         if self.format != "i":
             raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int32 ('i')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
+        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]().unsafe_offset(self.offset)
 
     def get_float64(self, idx: Int) raises -> Float64:
         """Returns the Float64 scalar at the specified row index.
@@ -192,8 +193,8 @@ struct Series(Copyable, Movable):
         elif self.format == "u":
             # Utf8: buffers[1] is 32-bit offsets, buffers[2] is bytes
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
-            var start = Int(off_ptr[unsafe_offset=idx])
-            var end = Int(off_ptr[unsafe_offset=idx + 1])
+            var start = Int(off_ptr[unsafe_offset=self.offset + idx])
+            var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
             var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[UInt8]()
             var s = String("")
             for i in range(start, end):
@@ -202,8 +203,8 @@ struct Series(Copyable, Movable):
         elif self.format == "U":
             # LargeUtf8: buffers[1] is 64-bit offsets, buffers[2] is bytes
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
-            var start = Int(off_ptr[unsafe_offset=idx])
-            var end = Int(off_ptr[unsafe_offset=idx + 1])
+            var start = Int(off_ptr[unsafe_offset=self.offset + idx])
+            var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
             var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[UInt8]()
             var s = String("")
             for i in range(start, end):
@@ -213,7 +214,7 @@ struct Series(Copyable, Movable):
             # Utf8View (Arrow StringView): buffers[1] is 16-byte view descriptors
             # buffers[2..] are variadic data buffers
             var raw_views = self.buffers[unsafe_offset=1].unsafe_bitcast[UInt8]()
-            var view_base = idx * 16
+            var view_base = (self.offset + idx) * 16
             var u32_ptr = raw_views.unsafe_offset(view_base).unsafe_bitcast[UInt32]()
             var str_len = Int(u32_ptr[unsafe_offset=0])
             var s = String("")
@@ -301,6 +302,534 @@ struct Series(Copyable, Movable):
         if self.length == 0:
             return 0.0
         return Float64(self.sum_int64()) / Float64(self.length)
+
+    def get_float(self, idx: Int) raises -> Float64:
+        """Returns the element at idx as a Float64 scalar.
+
+        Args:
+            idx: Zero-based row index.
+
+        Returns:
+            Float64 scalar.
+
+        Raises:
+            Error: If the format is not convertible to Float64.
+        """
+        if self.format == "g":
+            return self.get_float64(idx)
+        elif self.format == "f":
+            return Float64(self.get_float32(idx))
+        elif self.format == "l":
+            return Float64(self.get_int64(idx))
+        elif self.format == "i":
+            return Float64(self.get_int32(idx))
+        else:
+            raise Error("Series '" + self.name + "' format '" + self.format + "' cannot be converted to Float64")
+
+    def sum_float32(self) raises -> Float32:
+        """Computes the sum of all elements using SIMD vector loads for Float32."""
+        var ptr = self.as_float32_ptr()
+        var n = self.length
+        var total = Float32(0.0)
+        comptime simd_w = 8
+
+        def add_chunk[simd_width: Int](idx: Int) {mut total, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            total += v.reduce_add()
+
+        vectorize[simd_w](n, add_chunk)
+        return total
+
+    def sum_int32(self) raises -> Int32:
+        """Computes the sum of all elements using SIMD vector loads for Int32."""
+        var ptr = self.as_int32_ptr()
+        var n = self.length
+        var total = Int32(0)
+        comptime simd_w = 8
+
+        def add_chunk[simd_width: Int](idx: Int) {mut total, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            total += v.reduce_add()
+
+        vectorize[simd_w](n, add_chunk)
+        return total
+
+    def mean_float32(self) raises -> Float32:
+        """Computes the arithmetic mean for Float32 series."""
+        if self.length == 0:
+            return 0.0
+        return self.sum_float32() / Float32(self.length)
+
+    def mean_int32(self) raises -> Float64:
+        """Computes the arithmetic mean for Int32 series."""
+        if self.length == 0:
+            return 0.0
+        return Float64(self.sum_int32()) / Float64(self.length)
+
+    def min_float64(self) raises -> Float64:
+        """Computes the minimum value in the Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute min of empty Series")
+        var ptr = self.as_float64_ptr()
+        var n = self.length
+        var min_val = ptr[unsafe_offset=0]
+        comptime simd_w = 4
+
+        def min_chunk[simd_width: Int](idx: Int) {mut min_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_min()
+            if m < min_val:
+                min_val = m
+
+        vectorize[simd_w](n, min_chunk)
+        return min_val
+
+    def max_float64(self) raises -> Float64:
+        """Computes the maximum value in the Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute max of empty Series")
+        var ptr = self.as_float64_ptr()
+        var n = self.length
+        var max_val = ptr[unsafe_offset=0]
+        comptime simd_w = 4
+
+        def max_chunk[simd_width: Int](idx: Int) {mut max_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_max()
+            if m > max_val:
+                max_val = m
+
+        vectorize[simd_w](n, max_chunk)
+        return max_val
+
+    def min_int64(self) raises -> Int64:
+        """Computes the minimum value in the Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute min of empty Series")
+        var ptr = self.as_int64_ptr()
+        var n = self.length
+        var min_val = ptr[unsafe_offset=0]
+        comptime simd_w = 4
+
+        def min_chunk[simd_width: Int](idx: Int) {mut min_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_min()
+            if m < min_val:
+                min_val = m
+
+        vectorize[simd_w](n, min_chunk)
+        return min_val
+
+    def max_int64(self) raises -> Int64:
+        """Computes the maximum value in the Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute max of empty Series")
+        var ptr = self.as_int64_ptr()
+        var n = self.length
+        var max_val = ptr[unsafe_offset=0]
+        comptime simd_w = 4
+
+        def max_chunk[simd_width: Int](idx: Int) {mut max_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_max()
+            if m > max_val:
+                max_val = m
+
+        vectorize[simd_w](n, max_chunk)
+        return max_val
+
+    def min_float32(self) raises -> Float32:
+        """Computes the minimum value in the Float32 Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute min of empty Series")
+        var ptr = self.as_float32_ptr()
+        var n = self.length
+        var min_val = ptr[unsafe_offset=0]
+        comptime simd_w = 8
+
+        def min_chunk[simd_width: Int](idx: Int) {mut min_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_min()
+            if m < min_val:
+                min_val = m
+
+        vectorize[simd_w](n, min_chunk)
+        return min_val
+
+    def max_float32(self) raises -> Float32:
+        """Computes the maximum value in the Float32 Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute max of empty Series")
+        var ptr = self.as_float32_ptr()
+        var n = self.length
+        var max_val = ptr[unsafe_offset=0]
+        comptime simd_w = 8
+
+        def max_chunk[simd_width: Int](idx: Int) {mut max_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_max()
+            if m > max_val:
+                max_val = m
+
+        vectorize[simd_w](n, max_chunk)
+        return max_val
+
+    def min_int32(self) raises -> Int32:
+        """Computes the minimum value in the Int32 Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute min of empty Series")
+        var ptr = self.as_int32_ptr()
+        var n = self.length
+        var min_val = ptr[unsafe_offset=0]
+        comptime simd_w = 8
+
+        def min_chunk[simd_width: Int](idx: Int) {mut min_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_min()
+            if m < min_val:
+                min_val = m
+
+        vectorize[simd_w](n, min_chunk)
+        return min_val
+
+    def max_int32(self) raises -> Int32:
+        """Computes the maximum value in the Int32 Series using SIMD."""
+        if self.length == 0:
+            raise Error("Cannot compute max of empty Series")
+        var ptr = self.as_int32_ptr()
+        var n = self.length
+        var max_val = ptr[unsafe_offset=0]
+        comptime simd_w = 8
+
+        def max_chunk[simd_width: Int](idx: Int) {mut max_val, imm ptr}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var m = v.reduce_max()
+            if m > max_val:
+                max_val = m
+
+        vectorize[simd_w](n, max_chunk)
+        return max_val
+
+    def var_float64(self, ddof: Int = 1) raises -> Float64:
+        """Computes sample variance of the Float64 Series using SIMD."""
+        if self.length <= ddof:
+            raise Error("Not enough elements to compute variance with ddof=" + String(ddof))
+        var mean = self.mean_float64()
+        var ptr = self.as_float64_ptr()
+        var n = self.length
+        var total_sq_diff = Float64(0.0)
+        comptime simd_w = 4
+
+        def var_chunk[simd_width: Int](idx: Int) {mut total_sq_diff, imm ptr, imm mean}:
+            var v = ptr.unsafe_load[width=simd_width](idx)
+            var diff = v - mean
+            total_sq_diff += (diff * diff).reduce_add()
+
+        vectorize[simd_w](n, var_chunk)
+        return total_sq_diff / Float64(n - ddof)
+
+    def std_float64(self, ddof: Int = 1) raises -> Float64:
+        """Computes standard deviation of the Float64 Series using SIMD."""
+        from std.math import sqrt
+        return sqrt(self.var_float64(ddof))
+
+    def sum(self) raises -> Float64:
+        """Dynamically computes the sum across any numeric Series type."""
+        if self.format == "g":
+            return self.sum_float64()
+        elif self.format == "f":
+            return Float64(self.sum_float32())
+        elif self.format == "l":
+            return Float64(self.sum_int64())
+        elif self.format == "i":
+            return Float64(self.sum_int32())
+        else:
+            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support sum")
+
+    def mean(self) raises -> Float64:
+        """Dynamically computes the mean across any numeric Series type."""
+        if self.format == "g":
+            return self.mean_float64()
+        elif self.format == "f":
+            return Float64(self.mean_float32())
+        elif self.format == "l":
+            return self.mean_int64()
+        elif self.format == "i":
+            return Float64(self.mean_int32())
+        else:
+            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support mean")
+
+    def min(self) raises -> Float64:
+        """Dynamically computes the min across any numeric Series type."""
+        if self.format == "g":
+            return self.min_float64()
+        elif self.format == "f":
+            return Float64(self.min_float32())
+        elif self.format == "l":
+            return Float64(self.min_int64())
+        elif self.format == "i":
+            return Float64(self.min_int32())
+        else:
+            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support min")
+
+    def max(self) raises -> Float64:
+        """Dynamically computes the max across any numeric Series type."""
+        if self.format == "g":
+            return self.max_float64()
+        elif self.format == "f":
+            return Float64(self.max_float32())
+        elif self.format == "l":
+            return Float64(self.max_int64())
+        elif self.format == "i":
+            return Float64(self.max_int32())
+        else:
+            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support max")
+
+    def var(self, ddof: Int = 1) raises -> Float64:
+        """Dynamically computes variance across Float64 series."""
+        return self.var_float64(ddof)
+
+    def std(self, ddof: Int = 1) raises -> Float64:
+        """Dynamically computes standard deviation across Float64 series."""
+        return self.std_float64(ddof)
+
+    def __add__(self, other: Series) raises -> List[Float64]:
+        """Element-wise addition with another Series."""
+        if self.length != other.length:
+            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g" and other.format == "g":
+            var p1 = self.as_float64_ptr()
+            var p2 = other.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                var v2 = p2.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 + v2)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) + other.get_float(i)
+        return res^
+
+    def __add__(self, scalar: Float64) raises -> List[Float64]:
+        """Scalar addition broadcasting across the Series."""
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g":
+            var p1 = self.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 + scalar)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) + scalar
+        return res^
+
+    def __radd__(self, scalar: Float64) raises -> List[Float64]:
+        return self.__add__(scalar)
+
+    def __sub__(self, other: Series) raises -> List[Float64]:
+        """Element-wise subtraction with another Series."""
+        if self.length != other.length:
+            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g" and other.format == "g":
+            var p1 = self.as_float64_ptr()
+            var p2 = other.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                var v2 = p2.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 - v2)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) - other.get_float(i)
+        return res^
+
+    def __sub__(self, scalar: Float64) raises -> List[Float64]:
+        """Scalar subtraction broadcasting across the Series."""
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g":
+            var p1 = self.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 - scalar)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) - scalar
+        return res^
+
+    def __mul__(self, other: Series) raises -> List[Float64]:
+        """Element-wise multiplication with another Series."""
+        if self.length != other.length:
+            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g" and other.format == "g":
+            var p1 = self.as_float64_ptr()
+            var p2 = other.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                var v2 = p2.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 * v2)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) * other.get_float(i)
+        return res^
+
+    def __mul__(self, scalar: Float64) raises -> List[Float64]:
+        """Scalar multiplication broadcasting across the Series."""
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g":
+            var p1 = self.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 * scalar)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) * scalar
+        return res^
+
+    def __rmul__(self, scalar: Float64) raises -> List[Float64]:
+        return self.__mul__(scalar)
+
+    def __truediv__(self, other: Series) raises -> List[Float64]:
+        """Element-wise division with another Series."""
+        if self.length != other.length:
+            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g" and other.format == "g":
+            var p1 = self.as_float64_ptr()
+            var p2 = other.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                var v2 = p2.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 / v2)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) / other.get_float(i)
+        return res^
+
+    def __truediv__(self, scalar: Float64) raises -> List[Float64]:
+        """Scalar division broadcasting across the Series."""
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        comptime simd_w = 4
+
+        if self.format == "g":
+            var p1 = self.as_float64_ptr()
+            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+                var v1 = p1.unsafe_load[width=simd_width](idx)
+                res_ptr.unsafe_store[width=simd_width](idx, v1 / scalar)
+            vectorize[simd_w](n, chunk)
+        else:
+            for i in range(n):
+                res[i] = self.get_float(i) / scalar
+        return res^
+
+    def apply_float64[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]:
+        """Applies a function or closure element-wise over the Float64 Series.
+
+        Args:
+            func: A function or closure mapping Float64 -> Float64 (can raise).
+
+        Returns:
+            A List[Float64] containing the transformed values.
+        """
+        if self.format != "g":
+            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float64 ('g')")
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        var p = self.as_float64_ptr()
+        for i in range(n):
+            res_ptr[unsafe_offset=i] = func(p[unsafe_offset=i])
+        return res^
+
+    def apply_int64[Func: def(Int64) raises -> Int64](self, func: Func) raises -> List[Int64]:
+        """Applies a function or closure element-wise over the Int64 Series.
+
+        Args:
+            func: A function or closure mapping Int64 -> Int64 (can raise).
+
+        Returns:
+            A List[Int64] containing the transformed values.
+        """
+        if self.format != "l":
+            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int64 ('l')")
+        var n = self.length
+        var res = List[Int64](capacity=n)
+        res.resize(n, 0)
+        var res_ptr = res.unsafe_ptr()
+        var p = self.as_int64_ptr()
+        for i in range(n):
+            res_ptr[unsafe_offset=i] = func(p[unsafe_offset=i])
+        return res^
+
+    def apply[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]:
+        """Dynamically applies a function or closure element-wise over numeric column values.
+
+        Converts non-Float64 numeric types to Float64 dynamically.
+
+        Args:
+            func: A function or closure mapping Float64 -> Float64 (can raise).
+
+        Returns:
+            A List[Float64] containing the transformed values.
+        """
+        var n = self.length
+        var res = List[Float64](capacity=n)
+        res.resize(n, 0.0)
+        var res_ptr = res.unsafe_ptr()
+        if self.format == "g":
+            var p = self.as_float64_ptr()
+            for i in range(n):
+                res_ptr[unsafe_offset=i] = func(p[unsafe_offset=i])
+        else:
+            for i in range(n):
+                res_ptr[unsafe_offset=i] = func(self.get_float(i))
+        return res^
 
 struct DataFrame(Movable, Writable):
     """An in-memory columnar table backed by an Apache Arrow StructArray.
@@ -504,6 +1033,7 @@ struct DataFrame(Movable, Writable):
             name=name,
             format=fmt,
             length=length,
+            offset=Int(col_array.offset),
             null_count=null_cnt,
             n_buffers=n_bufs,
             buffers=bufs,
@@ -536,6 +1066,176 @@ struct DataFrame(Movable, Writable):
             Error: If index is out of bounds.
         """
         return self.column(idx)
+
+    def write_csv(self, path: String) raises:
+        """Writes the DataFrame to a CSV file.
+
+        Args:
+            path: Target filesystem path for the CSV output.
+
+        Raises:
+            Error: If writing to the file fails.
+        """
+        _ = MolarsBridge.write_csv(self._table.array_ptr, self._table.schema_ptr, path)
+
+    def write_parquet(self, path: String) raises:
+        """Writes the DataFrame to an Apache Parquet file.
+
+        Args:
+            path: Target filesystem path for the Parquet output.
+
+        Raises:
+            Error: If writing to the file fails.
+        """
+        _ = MolarsBridge.write_parquet(self._table.array_ptr, self._table.schema_ptr, path)
+
+    def head(self, n: Int = 5) raises -> DataFrame:
+        """Returns the first n rows of the DataFrame.
+
+        Args:
+            n: Number of rows to return (default 5).
+
+        Returns:
+            A new DataFrame containing the sliced rows.
+        """
+        var count = n
+        if count < 0:
+            count = 0
+        if count > self.height():
+            count = self.height()
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.slice_df(self._table.array_ptr, self._table.schema_ptr, 0, count, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def tail(self, n: Int = 5) raises -> DataFrame:
+        """Returns the last n rows of the DataFrame.
+
+        Args:
+            n: Number of rows to return (default 5).
+
+        Returns:
+            A new DataFrame containing the sliced rows.
+        """
+        var count = n
+        if count < 0:
+            count = 0
+        if count > self.height():
+            count = self.height()
+        var offset = Int64(self.height() - count)
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.slice_df(self._table.array_ptr, self._table.schema_ptr, offset, count, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def select(self, columns: List[String]) raises -> DataFrame:
+        """Projects a subset of columns from the DataFrame.
+
+        Args:
+            columns: List of column names to select.
+
+        Returns:
+            A new DataFrame containing only the selected columns.
+        """
+        var csv_cols = String("")
+        for i in range(len(columns)):
+            csv_cols += columns[i]
+            if i + 1 < len(columns):
+                csv_cols += ","
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.select_columns(self._table.array_ptr, self._table.schema_ptr, csv_cols, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def drop(self, columns: List[String]) raises -> DataFrame:
+        """Returns a DataFrame without the specified columns.
+
+        Args:
+            columns: List of column names to exclude.
+
+        Returns:
+            A new DataFrame without the specified columns.
+        """
+        var csv_cols = String("")
+        for i in range(len(columns)):
+            csv_cols += columns[i]
+            if i + 1 < len(columns):
+                csv_cols += ","
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.drop_columns(self._table.array_ptr, self._table.schema_ptr, csv_cols, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def rename(self, old_name: String, new_name: String) raises -> DataFrame:
+        """Renames a column in the DataFrame.
+
+        Args:
+            old_name: Existing column name.
+            new_name: New column name.
+
+        Returns:
+            A new DataFrame with the column renamed.
+        """
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.rename_column(self._table.array_ptr, self._table.schema_ptr, old_name, new_name, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def group_by(self, keys: List[String]) -> GroupBy:
+        """Groups the DataFrame by the specified column names.
+
+        Args:
+            keys: List of column names to group by.
+
+        Returns:
+            A GroupBy object to perform aggregations.
+        """
+        var keys_csv = String("")
+        for i in range(len(keys)):
+            keys_csv += keys[i]
+            if i + 1 < len(keys):
+                keys_csv += ","
+        return GroupBy(self._table.array_ptr, self._table.schema_ptr, keys_csv)
+
+    def group_by(self, key: String) -> GroupBy:
+        """Groups the DataFrame by a single column name or comma-separated column names.
+
+        Args:
+            key: Column name or comma-separated column names to group by.
+
+        Returns:
+            A GroupBy object to perform aggregations.
+        """
+        return GroupBy(self._table.array_ptr, self._table.schema_ptr, key)
+
+    def group_by(self, keys: String, aggs: String) raises -> DataFrame:
+        """Directly groups and aggregates the DataFrame.
+
+        Args:
+            keys: Grouping column names (comma-separated).
+            aggs: Aggregation specifications (comma-separated, e.g. 'sales:sum,rating:mean').
+
+        Returns:
+            An aggregated DataFrame.
+        """
+        return self.group_by(keys).agg(aggs)
+
+    def groupby(self, keys: List[String]) -> GroupBy:
+        """Alias for group_by."""
+        return self.group_by(keys)
+
+    def groupby(self, key: String) -> GroupBy:
+        """Alias for group_by."""
+        return self.group_by(key)
+
+    def groupby(self, keys: String, aggs: String) raises -> DataFrame:
+        """Alias for group_by."""
+        return self.group_by(keys, aggs)
 
     def write_to(self, mut writer: Some[Writer]):
         """Formats the DataFrame as an aligned ASCII preview table for terminal output.
@@ -591,3 +1291,57 @@ struct DataFrame(Movable, Writable):
 
         if n_rows > max_preview:
             writer.write("... (", n_rows - max_preview, " more rows)\n")
+
+@fieldwise_init
+struct GroupBy(Copyable, Movable):
+    """An intermediate groupby grouping object.
+
+    Allows executing aggregations over grouped columns using Polars' multithreaded engine.
+    """
+    var _array: Pointer[ArrowArray, MutUntrackedOrigin]
+    var _schema: Pointer[ArrowSchema, MutUntrackedOrigin]
+    var _keys_csv: String
+
+    def agg(self, aggs_csv: String) raises -> DataFrame:
+        """Applies aggregations to the grouped DataFrame.
+
+        Args:
+            aggs_csv: Comma-separated list of aggregations in 'col:op' or 'col:op:alias' format.
+                     Supported operations: 'sum', 'mean', 'avg', 'min', 'max', 'count', 'std', 'var', 'first', 'last'.
+
+        Returns:
+            An aggregated DataFrame.
+        """
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.groupby_agg(self._array, self._schema, self._keys_csv, aggs_csv, array_ptr, schema_ptr)
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def sum(self, cols_csv: String) raises -> DataFrame:
+        """Computes sum for specified columns in the group."""
+        var parts = cols_csv.split(",")
+        var aggs = String("")
+        for i in range(len(parts)):
+            var c = String(parts[i].strip())
+            aggs += c + ":sum"
+            if i + 1 < len(parts):
+                aggs += ","
+        return self.agg(aggs)
+
+    def mean(self, cols_csv: String) raises -> DataFrame:
+        """Computes mean for specified columns in the group."""
+        var parts = cols_csv.split(",")
+        var aggs = String("")
+        for i in range(len(parts)):
+            var c = String(parts[i].strip())
+            aggs += c + ":mean"
+            if i + 1 < len(parts):
+                aggs += ","
+        return self.agg(aggs)
+
+    def count(self) raises -> DataFrame:
+        """Counts rows per group using the first key column."""
+        var key_parts = self._keys_csv.split(",")
+        var first_key = String(key_parts[0].strip())
+        return self.agg(first_key + ":count:count")

@@ -166,6 +166,127 @@ var by_idx = df[0]
 
 ---
 
+## Writers and Exporters
+
+### `write_csv`
+
+```mojo
+def write_csv(self, path: String) raises
+```
+
+Writes the DataFrame to a CSV file on disk.
+
+```mojo
+df.write_csv("output.csv")
+```
+
+### `write_parquet`
+
+```mojo
+def write_parquet(self, path: String) raises
+```
+
+Writes the DataFrame to an Apache Parquet file on disk.
+
+```mojo
+df.write_parquet("output.parquet")
+```
+
+---
+
+## Table Slicing & Projection
+
+### `head` and `tail`
+
+```mojo
+def head(self, n: Int = 5) raises -> DataFrame
+def tail(self, n: Int = 5) raises -> DataFrame
+```
+
+Returns the first or last `n` rows of the DataFrame as a new DataFrame view.
+
+```mojo
+var first_five = df.head(5)
+var last_two = df.tail(2)
+```
+
+### `select` and `drop`
+
+```mojo
+def select(self, columns: List[String]) raises -> DataFrame
+def drop(self, columns: List[String]) raises -> DataFrame
+```
+
+Selects a subset of columns or drops specific columns, returning a new projected DataFrame.
+
+```mojo
+var sub_df = df.select(["name", "score"])
+var no_counts = df.drop(["count"])
+```
+
+### `rename`
+
+```mojo
+def rename(self, old_name: String, new_name: String) raises -> DataFrame
+```
+
+Renames a column, returning a new DataFrame with the updated column name.
+
+```mojo
+var renamed = df.rename("score", "rating")
+```
+
+---
+
+## GroupBy & Aggregations
+
+`DataFrame` provides high-performance grouping and aggregations backed by Polars' parallel multithreaded groupby engine:
+
+### Methods
+
+```mojo
+def group_by(self, keys: List[String]) -> GroupBy
+def group_by(self, key: String) -> GroupBy
+def group_by(self, keys: String, aggs: String) raises -> DataFrame
+```
+
+### `GroupBy` Object
+
+```mojo
+def agg(self, aggs_csv: String) raises -> DataFrame
+def sum(self, cols_csv: String) raises -> DataFrame
+def mean(self, cols_csv: String) raises -> DataFrame
+def count(self) raises -> DataFrame
+```
+
+### Supported Aggregations
+- `sum`: Column sum
+- `mean` or `avg`: Arithmetic mean
+- `min`: Minimum value
+- `max`: Maximum value
+- `count`: Group row count
+- `std`: Sample standard deviation
+- `var`: Sample variance
+- `first`: First group value
+- `last`: Last group value
+
+Aggregation specifications can also assign custom column aliases using `col:op:alias`:
+
+```mojo
+# Fluent aggregation with custom aliases
+var grp = df.group_by(["dept"]).agg("sales:sum:total_sales,sales:mean,rating:mean")
+
+# Quick aggregation shortcuts
+var sum_df = df.group_by("dept").sum("sales,bonus")
+var avg_df = df.group_by("dept").mean("rating")
+var count_df = df.group_by("dept").count()
+
+# One-liner convenience
+var res = df.group_by("dept", "sales:sum,rating:mean")
+```
+
+---
+
 ## Display & Terminal Output
 
 `DataFrame` implements Mojo's `Writable` trait. Calling `print(df)` outputs the shape, column names, Arrow data types, and a preview of up to 5 rows:
