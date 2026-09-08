@@ -8,7 +8,7 @@ mod tests {
     fn test_new_ffi_functions() {
         let mut array = std::mem::MaybeUninit::<ffi::ArrowArray>::uninit();
         let mut schema = std::mem::MaybeUninit::<ffi::ArrowSchema>::uninit();
-        let path = CString::new("scratch/sample.csv").unwrap();
+        let path = CString::new("tests/sample.csv").unwrap();
         let ret = unsafe {
             molars_read_csv(path.as_ptr(), array.as_mut_ptr(), schema.as_mut_ptr())
         };
@@ -17,17 +17,17 @@ mod tests {
         let mut schema = unsafe { schema.assume_init() };
 
         println!("Starting test_new_ffi_functions...");
-        let out_csv = CString::new("scratch/test_ffi_out.csv").unwrap();
+        let out_csv = CString::new("target/test_ffi_out.csv").unwrap();
         println!("Calling molars_write_csv...");
         let ret_csv = unsafe {
             molars_write_csv(&array, &schema, out_csv.as_ptr())
         };
         println!("molars_write_csv returned {}", ret_csv);
         assert_eq!(ret_csv, 0);
-        assert!(std::path::Path::new("scratch/test_ffi_out.csv").exists());
+        assert!(std::path::Path::new("target/test_ffi_out.csv").exists());
 
         println!("Calling molars_write_parquet...");
-        let out_parquet = CString::new("scratch/test_ffi_out.parquet").unwrap();
+        let out_parquet = CString::new("target/test_ffi_out.parquet").unwrap();
         let ret_parquet = unsafe {
             molars_write_parquet(&array, &schema, out_parquet.as_ptr())
         };
@@ -114,6 +114,11 @@ mod tests {
 
     #[test]
     fn test_export_1m() {
+        if !std::path::Path::new("scratch/bench_1m.csv").exists() {
+            println!("Skipping test_export_1m: scratch/bench_1m.csv not found");
+            return;
+        }
+
         let mut array = std::mem::MaybeUninit::<ffi::ArrowArray>::uninit();
         let mut schema = std::mem::MaybeUninit::<ffi::ArrowSchema>::uninit();
 

@@ -3,6 +3,7 @@ from std.memory import Pointer
 from std.memory.alloc import unsafe_alloc
 from molars.arrow_abi import ArrowArray, ArrowSchema
 
+
 struct MolarsBridge:
     @staticmethod
     @always_inline
@@ -19,7 +20,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_read_csv failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_read_csv failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -37,7 +40,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_read_parquet failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_read_parquet failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -61,7 +66,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_sql_query failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_sql_query failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -79,7 +86,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_write_csv failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_write_csv failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -97,7 +106,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_write_parquet failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_write_parquet failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -120,7 +131,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_slice failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_slice failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -142,7 +155,12 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_select_columns failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_select_columns failed (code "
+                + String(ret)
+                + "): "
+                + err
+            )
         return ret
 
     @staticmethod
@@ -164,7 +182,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_drop_columns failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_drop_columns failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -189,7 +209,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_rename_column failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_rename_column failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod
@@ -214,7 +236,9 @@ struct MolarsBridge:
         )
         if ret != 0:
             var err = MolarsBridge.get_last_error()
-            raise Error("molars_groupby_agg failed (code " + String(ret) + "): " + err)
+            raise Error(
+                "molars_groupby_agg failed (code " + String(ret) + "): " + err
+            )
         return ret
 
     @staticmethod

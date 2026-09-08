@@ -365,6 +365,12 @@ pub unsafe extern "C" fn molars_write_csv(
         }
     };
 
+    if let Some(parent) = std::path::Path::new(c_str).parent() {
+        if !parent.as_os_str().is_empty() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+    }
+
     let mut file = match std::fs::File::create(c_str) {
         Ok(f) => f,
         Err(e) => {
@@ -407,6 +413,12 @@ pub unsafe extern "C" fn molars_write_parquet(
             return -3;
         }
     };
+
+    if let Some(parent) = std::path::Path::new(c_str).parent() {
+        if !parent.as_os_str().is_empty() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+    }
 
     let mut file = match std::fs::File::create(c_str) {
         Ok(f) => f,

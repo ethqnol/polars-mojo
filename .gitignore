@@ -13,6 +13,7 @@ bin/
 
 # Scratch files and temporary data
 scratch/
+tests/test_roundtrip.*
 
 # Agent metadata
 .agents/

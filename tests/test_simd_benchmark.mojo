@@ -1,6 +1,7 @@
 from std.time import perf_counter_ns
 from molars import DataFrame, Series
 
+
 def main() raises:
     var t0 = perf_counter_ns()
     var df = DataFrame.read_csv("scratch/bench_1m.csv")

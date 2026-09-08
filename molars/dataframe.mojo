@@ -1,8 +1,14 @@
 from std.algorithm import vectorize
 from std.memory import Pointer
 from std.memory.alloc import unsafe_alloc
-from molars.arrow_abi import ArrowArray, ArrowSchema, ManagedArrowTable, null_ptr
+from molars.arrow_abi import (
+    ArrowArray,
+    ArrowSchema,
+    ManagedArrowTable,
+    null_ptr,
+)
 from molars.bridge import MolarsBridge
+
 
 @fieldwise_init
 struct Series(Copyable, Movable):
@@ -23,13 +29,16 @@ struct Series(Copyable, Movable):
         n_buffers: Number of backing memory buffers.
         buffers: Pointer array to underlying Arrow buffers.
     """
+
     var name: String
     var format: String
     var length: Int
     var offset: Int
     var null_count: Int
     var n_buffers: Int
-    var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]
+    var buffers: Pointer[
+        Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin
+    ]
 
     def len(self) -> Int:
         """Returns the number of elements in the series.
@@ -49,8 +58,18 @@ struct Series(Copyable, Movable):
             Error: If the series format is not 'g' (Float64).
         """
         if self.format != "g":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float64 ('g')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]().unsafe_offset(self.offset)
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Float64 ('g')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Float64]()
+            .unsafe_offset(self.offset)
+        )
 
     def as_float32_ptr(self) raises -> Pointer[Float32, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Float32 buffer.
@@ -62,8 +81,18 @@ struct Series(Copyable, Movable):
             Error: If the series format is not 'f' (Float32).
         """
         if self.format != "f":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float32 ('f')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Float32]().unsafe_offset(self.offset)
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Float32 ('f')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Float32]()
+            .unsafe_offset(self.offset)
+        )
 
     def as_int64_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Int64 buffer.
@@ -75,8 +104,18 @@ struct Series(Copyable, Movable):
             Error: If the series format is not 'l' (Int64).
         """
         if self.format != "l":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int64 ('l')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]().unsafe_offset(self.offset)
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Int64 ('l')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Int64]()
+            .unsafe_offset(self.offset)
+        )
 
     def as_int32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]:
         """Returns a typed pointer to the underlying Int32 buffer.
@@ -88,8 +127,18 @@ struct Series(Copyable, Movable):
             Error: If the series format is not 'i' (Int32).
         """
         if self.format != "i":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int32 ('i')")
-        return self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]().unsafe_offset(self.offset)
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Int32 ('i')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Int32]()
+            .unsafe_offset(self.offset)
+        )
 
     def get_float64(self, idx: Int) raises -> Float64:
         """Returns the Float64 scalar at the specified row index.
@@ -166,7 +215,13 @@ struct Series(Copyable, Movable):
             Error: If the series is not a string column format.
         """
         if self.format != "u" and self.format != "U" and self.format != "vu":
-            raise Error("Series '" + self.name + "' is not a string column (format '" + self.format + "')")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is not a string column (format '"
+                + self.format
+                + "')"
+            )
         return self.get_as_string(idx)
 
     def get_as_string(self, idx: Int) -> String:
@@ -195,7 +250,9 @@ struct Series(Copyable, Movable):
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
             var start = Int(off_ptr[unsafe_offset=self.offset + idx])
             var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
-            var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[UInt8]()
+            var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[
+                UInt8
+            ]()
             var s = String("")
             for i in range(start, end):
                 s += chr(Int(str_bytes[unsafe_offset=i]))
@@ -205,7 +262,9 @@ struct Series(Copyable, Movable):
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
             var start = Int(off_ptr[unsafe_offset=self.offset + idx])
             var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
-            var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[UInt8]()
+            var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[
+                UInt8
+            ]()
             var s = String("")
             for i in range(start, end):
                 s += chr(Int(str_bytes[unsafe_offset=i]))
@@ -213,9 +272,13 @@ struct Series(Copyable, Movable):
         elif self.format == "vu":
             # Utf8View (Arrow StringView): buffers[1] is 16-byte view descriptors
             # buffers[2..] are variadic data buffers
-            var raw_views = self.buffers[unsafe_offset=1].unsafe_bitcast[UInt8]()
+            var raw_views = self.buffers[unsafe_offset=1].unsafe_bitcast[
+                UInt8
+            ]()
             var view_base = (self.offset + idx) * 16
-            var u32_ptr = raw_views.unsafe_offset(view_base).unsafe_bitcast[UInt32]()
+            var u32_ptr = raw_views.unsafe_offset(view_base).unsafe_bitcast[
+                UInt32
+            ]()
             var str_len = Int(u32_ptr[unsafe_offset=0])
             var s = String("")
             if str_len <= 12:
@@ -228,7 +291,9 @@ struct Series(Copyable, Movable):
                 # Out-of-line string in variadic buffer
                 var buf_idx = Int(u32_ptr[unsafe_offset=2])
                 var offset = Int(u32_ptr[unsafe_offset=3])
-                var data_buf = self.buffers[unsafe_offset=2 + buf_idx].unsafe_bitcast[UInt8]()
+                var data_buf = self.buffers[
+                    unsafe_offset=2 + buf_idx
+                ].unsafe_bitcast[UInt8]()
                 for i in range(str_len):
                     s += chr(Int(data_buf[unsafe_offset=offset + i]))
                 return s
@@ -324,10 +389,17 @@ struct Series(Copyable, Movable):
         elif self.format == "i":
             return Float64(self.get_int32(idx))
         else:
-            raise Error("Series '" + self.name + "' format '" + self.format + "' cannot be converted to Float64")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' format '"
+                + self.format
+                + "' cannot be converted to Float64"
+            )
 
     def sum_float32(self) raises -> Float32:
-        """Computes the sum of all elements using SIMD vector loads for Float32."""
+        """Computes the sum of all elements using SIMD vector loads for Float32.
+        """
         var ptr = self.as_float32_ptr()
         var n = self.length
         var total = Float32(0.0)
@@ -341,7 +413,8 @@ struct Series(Copyable, Movable):
         return total
 
     def sum_int32(self) raises -> Int32:
-        """Computes the sum of all elements using SIMD vector loads for Int32."""
+        """Computes the sum of all elements using SIMD vector loads for Int32.
+        """
         var ptr = self.as_int32_ptr()
         var n = self.length
         var total = Int32(0)
@@ -513,14 +586,19 @@ struct Series(Copyable, Movable):
     def var_float64(self, ddof: Int = 1) raises -> Float64:
         """Computes sample variance of the Float64 Series using SIMD."""
         if self.length <= ddof:
-            raise Error("Not enough elements to compute variance with ddof=" + String(ddof))
+            raise Error(
+                "Not enough elements to compute variance with ddof="
+                + String(ddof)
+            )
         var mean = self.mean_float64()
         var ptr = self.as_float64_ptr()
         var n = self.length
         var total_sq_diff = Float64(0.0)
         comptime simd_w = 4
 
-        def var_chunk[simd_width: Int](idx: Int) {mut total_sq_diff, imm ptr, imm mean}:
+        def var_chunk[
+            simd_width: Int
+        ](idx: Int) {mut total_sq_diff, imm ptr, imm mean}:
             var v = ptr.unsafe_load[width=simd_width](idx)
             var diff = v - mean
             total_sq_diff += (diff * diff).reduce_add()
@@ -531,6 +609,7 @@ struct Series(Copyable, Movable):
     def std_float64(self, ddof: Int = 1) raises -> Float64:
         """Computes standard deviation of the Float64 Series using SIMD."""
         from std.math import sqrt
+
         return sqrt(self.var_float64(ddof))
 
     def sum(self) raises -> Float64:
@@ -544,7 +623,13 @@ struct Series(Copyable, Movable):
         elif self.format == "i":
             return Float64(self.sum_int32())
         else:
-            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support sum")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' format '"
+                + self.format
+                + "' does not support sum"
+            )
 
     def mean(self) raises -> Float64:
         """Dynamically computes the mean across any numeric Series type."""
@@ -557,7 +642,13 @@ struct Series(Copyable, Movable):
         elif self.format == "i":
             return Float64(self.mean_int32())
         else:
-            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support mean")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' format '"
+                + self.format
+                + "' does not support mean"
+            )
 
     def min(self) raises -> Float64:
         """Dynamically computes the min across any numeric Series type."""
@@ -570,7 +661,13 @@ struct Series(Copyable, Movable):
         elif self.format == "i":
             return Float64(self.min_int32())
         else:
-            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support min")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' format '"
+                + self.format
+                + "' does not support min"
+            )
 
     def max(self) raises -> Float64:
         """Dynamically computes the max across any numeric Series type."""
@@ -583,7 +680,13 @@ struct Series(Copyable, Movable):
         elif self.format == "i":
             return Float64(self.max_int32())
         else:
-            raise Error("Series '" + self.name + "' format '" + self.format + "' does not support max")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' format '"
+                + self.format
+                + "' does not support max"
+            )
 
     def var(self, ddof: Int = 1) raises -> Float64:
         """Dynamically computes variance across Float64 series."""
@@ -596,7 +699,12 @@ struct Series(Copyable, Movable):
     def __add__(self, other: Series) raises -> List[Float64]:
         """Element-wise addition with another Series."""
         if self.length != other.length:
-            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+            raise Error(
+                "Series lengths do not match: "
+                + String(self.length)
+                + " vs "
+                + String(other.length)
+            )
         var n = self.length
         var res = List[Float64](capacity=n)
         res.resize(n, 0.0)
@@ -606,10 +714,12 @@ struct Series(Copyable, Movable):
         if self.format == "g" and other.format == "g":
             var p1 = self.as_float64_ptr()
             var p2 = other.as_float64_ptr()
+
             def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 var v2 = p2.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 + v2)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -626,9 +736,13 @@ struct Series(Copyable, Movable):
 
         if self.format == "g":
             var p1 = self.as_float64_ptr()
-            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+
+            def chunk[
+                simd_width: Int
+            ](idx: Int) {imm p1, imm scalar, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 + scalar)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -641,7 +755,12 @@ struct Series(Copyable, Movable):
     def __sub__(self, other: Series) raises -> List[Float64]:
         """Element-wise subtraction with another Series."""
         if self.length != other.length:
-            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+            raise Error(
+                "Series lengths do not match: "
+                + String(self.length)
+                + " vs "
+                + String(other.length)
+            )
         var n = self.length
         var res = List[Float64](capacity=n)
         res.resize(n, 0.0)
@@ -651,10 +770,12 @@ struct Series(Copyable, Movable):
         if self.format == "g" and other.format == "g":
             var p1 = self.as_float64_ptr()
             var p2 = other.as_float64_ptr()
+
             def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 var v2 = p2.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 - v2)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -671,9 +792,13 @@ struct Series(Copyable, Movable):
 
         if self.format == "g":
             var p1 = self.as_float64_ptr()
-            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+
+            def chunk[
+                simd_width: Int
+            ](idx: Int) {imm p1, imm scalar, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 - scalar)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -683,7 +808,12 @@ struct Series(Copyable, Movable):
     def __mul__(self, other: Series) raises -> List[Float64]:
         """Element-wise multiplication with another Series."""
         if self.length != other.length:
-            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+            raise Error(
+                "Series lengths do not match: "
+                + String(self.length)
+                + " vs "
+                + String(other.length)
+            )
         var n = self.length
         var res = List[Float64](capacity=n)
         res.resize(n, 0.0)
@@ -693,10 +823,12 @@ struct Series(Copyable, Movable):
         if self.format == "g" and other.format == "g":
             var p1 = self.as_float64_ptr()
             var p2 = other.as_float64_ptr()
+
             def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 var v2 = p2.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 * v2)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -713,9 +845,13 @@ struct Series(Copyable, Movable):
 
         if self.format == "g":
             var p1 = self.as_float64_ptr()
-            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+
+            def chunk[
+                simd_width: Int
+            ](idx: Int) {imm p1, imm scalar, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 * scalar)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -728,7 +864,12 @@ struct Series(Copyable, Movable):
     def __truediv__(self, other: Series) raises -> List[Float64]:
         """Element-wise division with another Series."""
         if self.length != other.length:
-            raise Error("Series lengths do not match: " + String(self.length) + " vs " + String(other.length))
+            raise Error(
+                "Series lengths do not match: "
+                + String(self.length)
+                + " vs "
+                + String(other.length)
+            )
         var n = self.length
         var res = List[Float64](capacity=n)
         res.resize(n, 0.0)
@@ -738,10 +879,12 @@ struct Series(Copyable, Movable):
         if self.format == "g" and other.format == "g":
             var p1 = self.as_float64_ptr()
             var p2 = other.as_float64_ptr()
+
             def chunk[simd_width: Int](idx: Int) {imm p1, imm p2, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 var v2 = p2.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 / v2)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
@@ -758,16 +901,22 @@ struct Series(Copyable, Movable):
 
         if self.format == "g":
             var p1 = self.as_float64_ptr()
-            def chunk[simd_width: Int](idx: Int) {imm p1, imm scalar, mut res_ptr}:
+
+            def chunk[
+                simd_width: Int
+            ](idx: Int) {imm p1, imm scalar, mut res_ptr}:
                 var v1 = p1.unsafe_load[width=simd_width](idx)
                 res_ptr.unsafe_store[width=simd_width](idx, v1 / scalar)
+
             vectorize[simd_w](n, chunk)
         else:
             for i in range(n):
                 res[i] = self.get_float(i) / scalar
         return res^
 
-    def apply_float64[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]:
+    def apply_float64[
+        Func: def(Float64) raises -> Float64
+    ](self, func: Func) raises -> List[Float64]:
         """Applies a function or closure element-wise over the Float64 Series.
 
         Args:
@@ -777,7 +926,13 @@ struct Series(Copyable, Movable):
             A List[Float64] containing the transformed values.
         """
         if self.format != "g":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Float64 ('g')")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Float64 ('g')"
+            )
         var n = self.length
         var res = List[Float64](capacity=n)
         res.resize(n, 0.0)
@@ -787,7 +942,9 @@ struct Series(Copyable, Movable):
             res_ptr[unsafe_offset=i] = func(p[unsafe_offset=i])
         return res^
 
-    def apply_int64[Func: def(Int64) raises -> Int64](self, func: Func) raises -> List[Int64]:
+    def apply_int64[
+        Func: def(Int64) raises -> Int64
+    ](self, func: Func) raises -> List[Int64]:
         """Applies a function or closure element-wise over the Int64 Series.
 
         Args:
@@ -797,7 +954,13 @@ struct Series(Copyable, Movable):
             A List[Int64] containing the transformed values.
         """
         if self.format != "l":
-            raise Error("Series '" + self.name + "' is format '" + self.format + "', not Int64 ('l')")
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Int64 ('l')"
+            )
         var n = self.length
         var res = List[Int64](capacity=n)
         res.resize(n, 0)
@@ -807,7 +970,9 @@ struct Series(Copyable, Movable):
             res_ptr[unsafe_offset=i] = func(p[unsafe_offset=i])
         return res^
 
-    def apply[Func: def(Float64) raises -> Float64](self, func: Func) raises -> List[Float64]:
+    def apply[
+        Func: def(Float64) raises -> Float64
+    ](self, func: Func) raises -> List[Float64]:
         """Dynamically applies a function or closure element-wise over numeric column values.
 
         Converts non-Float64 numeric types to Float64 dynamically.
@@ -831,6 +996,7 @@ struct Series(Copyable, Movable):
                 res_ptr[unsafe_offset=i] = func(self.get_float(i))
         return res^
 
+
 struct DataFrame(Movable, Writable):
     """An in-memory columnar table backed by an Apache Arrow StructArray.
 
@@ -843,6 +1009,7 @@ struct DataFrame(Movable, Writable):
         _col_names: Ordered list of column names.
         _col_formats: Ordered list of Arrow format type codes for each column.
     """
+
     var _table: ManagedArrowTable
     var _col_names: List[String]
     var _col_formats: List[String]
@@ -900,7 +1067,9 @@ struct DataFrame(Movable, Writable):
         return DataFrame(managed^)
 
     @staticmethod
-    def sql(query: String, table_name: String, file_path: String) raises -> DataFrame:
+    def sql(
+        query: String, table_name: String, file_path: String
+    ) raises -> DataFrame:
         """Executes a SQL query against a dataset using the Polars SQLContext engine.
 
         Registers the dataset as a LazyFrame, applies query optimizations, and
@@ -919,7 +1088,9 @@ struct DataFrame(Movable, Writable):
         """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.sql_query(query, table_name, file_path, array_ptr, schema_ptr)
+        _ = MolarsBridge.sql_query(
+            query, table_name, file_path, array_ptr, schema_ptr
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1076,7 +1247,9 @@ struct DataFrame(Movable, Writable):
         Raises:
             Error: If writing to the file fails.
         """
-        _ = MolarsBridge.write_csv(self._table.array_ptr, self._table.schema_ptr, path)
+        _ = MolarsBridge.write_csv(
+            self._table.array_ptr, self._table.schema_ptr, path
+        )
 
     def write_parquet(self, path: String) raises:
         """Writes the DataFrame to an Apache Parquet file.
@@ -1087,7 +1260,9 @@ struct DataFrame(Movable, Writable):
         Raises:
             Error: If writing to the file fails.
         """
-        _ = MolarsBridge.write_parquet(self._table.array_ptr, self._table.schema_ptr, path)
+        _ = MolarsBridge.write_parquet(
+            self._table.array_ptr, self._table.schema_ptr, path
+        )
 
     def head(self, n: Int = 5) raises -> DataFrame:
         """Returns the first n rows of the DataFrame.
@@ -1105,7 +1280,14 @@ struct DataFrame(Movable, Writable):
             count = self.height()
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.slice_df(self._table.array_ptr, self._table.schema_ptr, 0, count, array_ptr, schema_ptr)
+        _ = MolarsBridge.slice_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            0,
+            count,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1126,7 +1308,14 @@ struct DataFrame(Movable, Writable):
         var offset = Int64(self.height() - count)
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.slice_df(self._table.array_ptr, self._table.schema_ptr, offset, count, array_ptr, schema_ptr)
+        _ = MolarsBridge.slice_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            offset,
+            count,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1146,7 +1335,13 @@ struct DataFrame(Movable, Writable):
                 csv_cols += ","
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.select_columns(self._table.array_ptr, self._table.schema_ptr, csv_cols, array_ptr, schema_ptr)
+        _ = MolarsBridge.select_columns(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            csv_cols,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1166,7 +1361,13 @@ struct DataFrame(Movable, Writable):
                 csv_cols += ","
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.drop_columns(self._table.array_ptr, self._table.schema_ptr, csv_cols, array_ptr, schema_ptr)
+        _ = MolarsBridge.drop_columns(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            csv_cols,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1182,7 +1383,14 @@ struct DataFrame(Movable, Writable):
         """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.rename_column(self._table.array_ptr, self._table.schema_ptr, old_name, new_name, array_ptr, schema_ptr)
+        _ = MolarsBridge.rename_column(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            old_name,
+            new_name,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1292,12 +1500,14 @@ struct DataFrame(Movable, Writable):
         if n_rows > max_preview:
             writer.write("... (", n_rows - max_preview, " more rows)\n")
 
+
 @fieldwise_init
 struct GroupBy(Copyable, Movable):
     """An intermediate groupby grouping object.
 
     Allows executing aggregations over grouped columns using Polars' multithreaded engine.
     """
+
     var _array: Pointer[ArrowArray, MutUntrackedOrigin]
     var _schema: Pointer[ArrowSchema, MutUntrackedOrigin]
     var _keys_csv: String
@@ -1314,7 +1524,14 @@ struct GroupBy(Copyable, Movable):
         """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.groupby_agg(self._array, self._schema, self._keys_csv, aggs_csv, array_ptr, schema_ptr)
+        _ = MolarsBridge.groupby_agg(
+            self._array,
+            self._schema,
+            self._keys_csv,
+            aggs_csv,
+            array_ptr,
+            schema_ptr,
+        )
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 

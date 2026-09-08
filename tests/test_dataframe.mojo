@@ -1,5 +1,11 @@
-from std.testing import TestSuite, assert_equal, assert_true, assert_almost_equal
+from std.testing import (
+    TestSuite,
+    assert_equal,
+    assert_true,
+    assert_almost_equal,
+)
 from molars import DataFrame, Series
+
 
 def test_csv() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
@@ -19,6 +25,7 @@ def test_csv() raises:
     assert_equal(name_col.get_string(2), "Charlie")
     _ = df
 
+
 def test_parquet() raises:
     var df = DataFrame.read_parquet("tests/sample.parquet")
     var shape = df.shape()
@@ -27,6 +34,7 @@ def test_parquet() raises:
 
     assert_almost_equal(df["score"].sum_float64(), 435.5, atol=0.01)
     _ = df
+
 
 def test_sql() raises:
     var df = DataFrame.sql(
@@ -41,20 +49,21 @@ def test_sql() raises:
     assert_equal(df["name"].get_string(2), "Eve")
     _ = df
 
+
 def test_writers() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
-    
+
     # Test CSV write and readback
-    df.write_csv("scratch/test_roundtrip.csv")
-    var csv_df = DataFrame.read_csv("scratch/test_roundtrip.csv")
+    df.write_csv("tests/test_roundtrip.csv")
+    var csv_df = DataFrame.read_csv("tests/test_roundtrip.csv")
     assert_equal(csv_df.height(), 5)
     assert_equal(csv_df.width(), 4)
     assert_almost_equal(csv_df["score"].sum_float64(), 435.5, atol=0.01)
     assert_equal(csv_df["name"].get_string(0), "Alice")
 
     # Test Parquet write and readback
-    df.write_parquet("scratch/test_roundtrip.parquet")
-    var pq_df = DataFrame.read_parquet("scratch/test_roundtrip.parquet")
+    df.write_parquet("tests/test_roundtrip.parquet")
+    var pq_df = DataFrame.read_parquet("tests/test_roundtrip.parquet")
     assert_equal(pq_df.height(), 5)
     assert_equal(pq_df.width(), 4)
     assert_almost_equal(pq_df["score"].sum_float64(), 435.5, atol=0.01)
@@ -63,9 +72,10 @@ def test_writers() raises:
     _ = csv_df
     _ = pq_df
 
+
 def test_slicing() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
-    
+
     # Test head(2)
     var head_df = df.head(2)
     assert_equal(head_df.height(), 2)
@@ -82,6 +92,7 @@ def test_slicing() raises:
     _ = df
     _ = head_df
     _ = tail_df
+
 
 def test_projection() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
@@ -108,6 +119,7 @@ def test_projection() raises:
     _ = sel_df
     _ = drop_df
 
+
 def test_rename() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
     var renamed = df.rename("score", "rating")
@@ -116,6 +128,7 @@ def test_rename() raises:
     assert_almost_equal(renamed["rating"].sum_float64(), 435.5, atol=0.01)
     _ = df
     _ = renamed
+
 
 def test_simd_reductions() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
@@ -146,6 +159,7 @@ def test_simd_reductions() raises:
     assert_almost_equal(count_col.sum(), 150.0, atol=0.01)
     assert_almost_equal(count_col.mean(), 30.0, atol=0.01)
     _ = df
+
 
 def test_elementwise_simd() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
@@ -178,6 +192,7 @@ def test_elementwise_simd() raises:
     assert_almost_equal(halved[0], 47.75, atol=0.01)
     _ = df
 
+
 def test_series_apply() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
     var score_col = df["score"]
@@ -192,6 +207,7 @@ def test_series_apply() raises:
 
     # 2. apply with state-capturing closure
     var boost = 5.0
+
     def boost_fn(x: Float64) raises {imm boost} -> Float64:
         return x + boost
 
@@ -201,6 +217,7 @@ def test_series_apply() raises:
 
     # 3. apply_int64 on integer column
     var count_col = df["count"]
+
     def double_int(x: Int64) -> Int64:
         return x * 2
 
@@ -210,11 +227,14 @@ def test_series_apply() raises:
     assert_equal(doubled_counts[1], 40)
     _ = df
 
+
 def test_dataframe_groupby() raises:
     var df = DataFrame.read_csv("tests/sample.csv")
 
     # 1. Fluent group_by.agg with custom alias
-    var grp = df.group_by(["name"]).agg("score:sum:total_score,score:mean,count:sum")
+    var grp = df.group_by(["name"]).agg(
+        "score:sum:total_score,score:mean,count:sum"
+    )
     assert_equal(grp.height(), 5)
     assert_equal(grp.width(), 4)
     assert_equal(grp.column_names()[0], "name")
@@ -249,6 +269,7 @@ def test_dataframe_groupby() raises:
     _ = mean_df
     _ = count_df
     _ = direct_df
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

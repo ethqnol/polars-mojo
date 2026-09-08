@@ -1,12 +1,14 @@
 from std.ffi import c_char, CStringSlice, external_call
 from std.memory import Pointer
 
+
 @always_inline
 def null_ptr[T: AnyType]() -> Pointer[T, MutUntrackedOrigin]:
     return Pointer[T, MutUntrackedOrigin](unsafe_from_address=Int(0))
 
+
 @fieldwise_init
-struct ArrowSchema(ImplicitlyCopyable, Copyable, Movable):
+struct ArrowSchema(Copyable, ImplicitlyCopyable, Movable):
     """C ABI layout for schema metadata in the Apache Arrow C Data Interface.
 
     Traits:
@@ -25,12 +27,15 @@ struct ArrowSchema(ImplicitlyCopyable, Copyable, Movable):
         release: Function pointer to release callback for this schema.
         private_data: Pointer to implementation-specific private data.
     """
+
     var format: Pointer[c_char, MutUntrackedOrigin]
     var name: Pointer[c_char, MutUntrackedOrigin]
     var metadata: Pointer[c_char, MutUntrackedOrigin]
     var flags: Int64
     var n_children: Int64
-    var children: Pointer[Pointer[ArrowSchema, MutUntrackedOrigin], MutUntrackedOrigin]
+    var children: Pointer[
+        Pointer[ArrowSchema, MutUntrackedOrigin], MutUntrackedOrigin
+    ]
     var dictionary: Pointer[ArrowSchema, MutUntrackedOrigin]
     var release: Pointer[NoneType, MutUntrackedOrigin]
     var private_data: Pointer[NoneType, MutUntrackedOrigin]
@@ -51,8 +56,9 @@ struct ArrowSchema(ImplicitlyCopyable, Copyable, Movable):
             return ""
         return String(CStringSlice(unsafe_from_ptr=self.name))
 
+
 @fieldwise_init
-struct ArrowArray(ImplicitlyCopyable, Copyable, Movable):
+struct ArrowArray(Copyable, ImplicitlyCopyable, Movable):
     """C ABI layout for a data array in the Apache Arrow C Data Interface.
 
     Traits:
@@ -72,13 +78,18 @@ struct ArrowArray(ImplicitlyCopyable, Copyable, Movable):
         release: Function pointer to release callback for this array.
         private_data: Pointer to implementation-specific private data.
     """
+
     var length: Int64
     var null_count: Int64
     var offset: Int64
     var n_buffers: Int64
     var n_children: Int64
-    var buffers: Pointer[Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin]
-    var children: Pointer[Pointer[ArrowArray, MutUntrackedOrigin], MutUntrackedOrigin]
+    var buffers: Pointer[
+        Pointer[NoneType, MutUntrackedOrigin], MutUntrackedOrigin
+    ]
+    var children: Pointer[
+        Pointer[ArrowArray, MutUntrackedOrigin], MutUntrackedOrigin
+    ]
     var dictionary: Pointer[ArrowArray, MutUntrackedOrigin]
     var release: Pointer[NoneType, MutUntrackedOrigin]
     var private_data: Pointer[NoneType, MutUntrackedOrigin]
@@ -86,6 +97,7 @@ struct ArrowArray(ImplicitlyCopyable, Copyable, Movable):
     def is_released(self) -> Bool:
         """Returns True if the release callback has been cleared to null."""
         return Int(self.release) == 0
+
 
 struct ManagedArrowTable(Movable):
     """RAII memory manager for heap-allocated ArrowArray and ArrowSchema pointers.
@@ -101,6 +113,7 @@ struct ManagedArrowTable(Movable):
         schema_ptr: Pointer to heap-allocated root ArrowSchema struct.
         is_active: Flag indicating whether this instance owns active allocations.
     """
+
     var array_ptr: Pointer[ArrowArray, MutUntrackedOrigin]
     var schema_ptr: Pointer[ArrowSchema, MutUntrackedOrigin]
     var is_active: Bool
@@ -131,10 +144,13 @@ struct ManagedArrowTable(Movable):
         self.is_active = move.is_active
 
     def __deinit__(deinit self):
-        """Releases Arrow resources via FFI callbacks and deallocates pointers."""
+        """Releases Arrow resources via FFI callbacks and deallocates pointers.
+        """
         if self.is_active:
             _ = external_call["molars_release_array", NoneType](self.array_ptr)
-            _ = external_call["molars_release_schema", NoneType](self.schema_ptr)
+            _ = external_call["molars_release_schema", NoneType](
+                self.schema_ptr
+            )
             self.array_ptr.unsafe_free()
             self.schema_ptr.unsafe_free()
 
