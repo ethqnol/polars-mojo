@@ -37,6 +37,22 @@ struct Series(Copyable, Movable):
 
 ---
 
+## Dimensions and Length
+
+### `len`
+
+```mojo
+def len(self) -> Int
+```
+
+Returns the number of rows (elements) in the series.
+
+```mojo
+var count = series.len()
+```
+
+---
+
 ## Buffer Pointer Access
 
 For maximum performance, you can retrieve a typed pointer to the contiguous memory buffer. This accounts for any slice offset and enables custom loops, GPU transfers, or low-level SIMD operations without overhead.

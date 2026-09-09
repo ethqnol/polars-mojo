@@ -248,6 +248,11 @@ var renamed = df.rename("score", "rating")
 def group_by(self, keys: List[String]) -> GroupBy
 def group_by(self, key: String) -> GroupBy
 def group_by(self, keys: String, aggs: String) raises -> DataFrame
+
+# Aliases
+def groupby(self, keys: List[String]) -> GroupBy
+def groupby(self, key: String) -> GroupBy
+def groupby(self, keys: String, aggs: String) raises -> DataFrame
 ```
 
 ### `GroupBy` Object

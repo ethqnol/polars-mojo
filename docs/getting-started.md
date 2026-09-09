@@ -69,19 +69,42 @@ Create a file named `main.mojo`:
 from molars import DataFrame
 
 def main() raises:
-    # 1. Load CSV file
-    var df = DataFrame.read_csv("data.csv")
+    # 1. Ingest dataset (CSV or Parquet)
+    var df = DataFrame.read_csv("tests/sample.csv")
 
-    # 2. Print table shape and top rows
+    # 2. Inspect table dimensions and preview rows
+    print("Shape:", df.shape())  # (rows, cols)
     print(df)
 
-    # 3. Extract a numeric column and calculate sum via SIMD
-    var col = df["price"]
-    print("Row count:", col.len())
-    print("Total price:", col.sum_float64())
-    print("Average price:", col.mean_float64())
+    # 3. Slice and project columns
+    var top3 = df.head(3)
+    var subset = df.select(["name", "score"])
 
-    # 4. Access strings zero-copy
-    var names = df["name"]
-    print("First item:", names.get_string(0))
+    # 4. Zero-copy Series access and SIMD reductions
+    var score_col = df["score"]
+    print("Total score:", score_col.sum())
+    print("Mean score:", score_col.mean())
+    print("Min score:", score_col.min())
+    print("Max score:", score_col.max())
+    print("Std dev:", score_col.std())
+
+    # 5. Vectorized arithmetic and broadcasting
+    var adjusted = (score_col * 1.05) + 2.0
+    print("Adjusted first score:", adjusted[0])
+
+    # 6. Apply pure-Mojo closures zero-copy
+    var multiplier = 1.10
+    def tax_calc(x: Float64) raises {imm multiplier} -> Float64:
+        return x * multiplier
+
+    var taxed = score_col.apply(tax_calc)
+
+    # 7. High-performance multithreaded GroupBy
+    var grouped = df.group_by("name").agg("score:mean:avg_score,score:max:high_score")
+    print(grouped)
+
+    # 8. Export results to Parquet or CSV
+    grouped.write_parquet("summary.parquet")
+    grouped.write_csv("summary.csv")
 ```
+
