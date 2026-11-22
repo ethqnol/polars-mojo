@@ -12,13 +12,16 @@
 - **SIMD Reductions**: Vectorized column reductions (`sum`, `mean`, `min`, `max`, `var`, `std`) dynamically dispatched or specialized for Float64, Float32, Int64, and Int32 using Mojo's hardware vector primitives.
 - **Vectorized Arithmetic & Broadcasting**: Element-wise series operations (`+`, `-`, `*`, `/`) and scalar broadcasting accelerated by SIMD vectorization.
 - **Zero-Cost UDF Closures (`apply`)**: Apply arbitrary pure Mojo functions and stateful closures element-wise directly across contiguous Arrow buffers without FFI overhead.
+- **In-Memory Table Operations**: Boolean mask filtering (`filter`), multi-column sorting (`sort`), and in-memory joins (`join`: `inner`, `left`, `right`, `full`, `semi`, `anti`, `cross`).
+- **Null & Boolean Support**: `BooleanSeries`, Series comparison operators (`>`, `>=`, `<`, `<=`, `==`, `!=`, string predicates), Arrow validity bitmap inspection (`is_null`, `is_not_null`, `count_nulls`), and null handling (`drop_nulls`, `fill_null`, `fill_null_strategy`).
+- **Temporal Types**: Native Arrow `Date` (`tdD`), `Datetime` (`tss:`/`tsm:`/`tsu:`/`tsn:`), and `Duration` (`tDs`/`tDm`/`tDu`/`tDn`) support with ISO-8601 formatters and optional `try_parse_dates=True` in `read_csv`.
 - **String Support**: Comprehensive zero-copy decoding for 32-bit Utf8 (`u`), 64-bit LargeUtf8 (`U`), and Arrow StringView (`vu`).
 
 ## Scope & Limitations (v0.1.0)
 
 `molars` provides an extensive foundation for high-performance tabular compute in Mojo:
-- **Supported**: `DataFrame.read_csv`, `DataFrame.read_parquet`, `DataFrame.write_csv`, `DataFrame.write_parquet`, `DataFrame.sql`, row slicing (`head`, `tail`), column projections (`select`, `drop`, `rename`), parallel groupby aggregations (`group_by`, `groupby`, `agg`, `sum`, `mean`, `count`), dynamic & type-specific SIMD reductions, SIMD element-wise arithmetic & scalar broadcasting, element-wise UDF closures (`apply`, `apply_float64`, `apply_int64`), and low-level Arrow C ABI structs.
-- **Not yet supported**: Fluent expression DSL (`pl.col(...)`), in-memory Boolean mask filtering (`df.filter(mask)`), in-memory sorting (`df.sort()`), in-memory table joins (`df.join()` between existing Mojo tables), and temporal/nested types.
+- **Supported**: `DataFrame.read_csv` (with `try_parse_dates`), `DataFrame.read_parquet`, `DataFrame.write_csv`, `DataFrame.write_parquet`, `DataFrame.sql`, row slicing (`head`, `tail`), column projections (`select`, `drop`, `rename`), in-memory `filter`, `sort`, `join`, null handling (`drop_nulls`, `fill_null`, `fill_null_strategy`), `BooleanSeries` & comparison operators, temporal types (`Date`, `Datetime`, `Duration`), parallel groupby aggregations (`group_by`, `groupby`, `agg`, `sum`, `mean`, `count`), dynamic & type-specific SIMD reductions, SIMD element-wise arithmetic & scalar broadcasting, element-wise UDF closures (`apply`, `apply_float64`, `apply_int64`), and low-level Arrow C ABI structs.
+- **Not yet supported**: Fluent expression DSL (`pl.col(...)`), nested types (`List`, `Struct`, `Map`), and out-of-core streaming execution.
 
 ## Documentation Index
 

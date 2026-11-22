@@ -41,9 +41,13 @@ Arrow format strings (`ArrowSchema.format`) map to Mojo types as follows:
 | `f` | Float32 | `as_float32_ptr()`, `get_float32()` | 32-bit IEEE 754 floats |
 | `l` | Int64 | `as_int64_ptr()`, `get_int64()` | 64-bit signed integers |
 | `i` | Int32 | `as_int32_ptr()`, `get_int32()` | 32-bit signed integers |
+| `b` | Boolean | `get_bool()`, `to_bool_series()` | Bit-packed boolean bitmap (`buffers[1]`) |
 | `u` | Utf8 | `get_string()` | 32-bit offsets + UTF-8 byte buffer |
 | `U` | LargeUtf8 | `get_string()` | 64-bit offsets + UTF-8 byte buffer |
 | `vu` | Utf8View (StringView) | `get_string()` | 16-byte descriptors (inlined <=12B or buffer offset/len) + variadic buffers |
+| `tdD` | Date32 | `as_date32_ptr()`, `get_date_days()`, `get_date_iso()` | 32-bit signed days since 1970-01-01 |
+| `tss:`/`tsm:`/`tsu:`/`tsn:` | Timestamp (Datetime) | `as_timestamp_ptr()`, `get_timestamp()`, `get_datetime_iso()` | 64-bit signed ticks since epoch |
+| `tDs`/`tDm`/`tDu`/`tDn` | Duration | `as_duration_ptr()`, `get_duration()`, `get_duration_string()` | 64-bit signed elapsed ticks |
 | `+s` | Struct | Root `DataFrame` | Nested child arrays representing table columns |
 
 ## SIMD Vectorization & Closures
@@ -84,16 +88,25 @@ vectorize[simd_w](n, chunk)
 
 ### File I/O & Queries
 - `molars_read_csv(path, out_array, out_schema) -> i32`: Ingests CSV files multithreaded.
+- `molars_read_csv_ex(path, try_parse_dates, out_array, out_schema) -> i32`: Ingests CSV files with optional automatic date/datetime parsing.
 - `molars_read_parquet(path, out_array, out_schema) -> i32`: Ingests Parquet files.
 - `molars_sql_query(query, table_name, file_path, out_array, out_schema) -> i32`: Runs SQL queries with pushdown optimization.
 - `molars_write_csv(array, schema, path) -> i32`: Serializes DataFrame buffers to CSV on disk.
 - `molars_write_parquet(array, schema, path) -> i32`: Serializes DataFrame buffers to Parquet on disk.
 
-### Table Transformations & GroupBy
+### Table Transformations, Joins, Nulls & GroupBy
 - `molars_slice(array, schema, offset, length, out_array, out_schema) -> i32`: Slices rows (used by `head` and `tail`).
 - `molars_select_columns(array, schema, col_names_csv, out_array, out_schema) -> i32`: Projects subset of columns.
 - `molars_drop_columns(array, schema, col_names_csv, out_array, out_schema) -> i32`: Drops specified columns.
 - `molars_rename_column(array, schema, old_name, new_name, out_array, out_schema) -> i32`: Renames a column.
+- `molars_filter(array, schema, mask, mask_len, out_array, out_schema) -> i32`: Filters rows using a Mojo boolean byte mask.
+- `molars_sort(array, schema, by_csv, descending_csv, nulls_last, out_array, out_schema) -> i32`: Sorts rows across one or more columns.
+- `molars_join(left_array, left_schema, right_array, right_schema, left_on_csv, right_on_csv, how, out_array, out_schema) -> i32`: Joins two in-memory Arrow DataFrames (`inner`, `left`, `right`, `full`, `semi`, `anti`, `cross`).
+- `molars_drop_nulls(array, schema, subset_csv, out_array, out_schema) -> i32`: Drops rows containing null values.
+- `molars_fill_null_float64(array, schema, col_name, value, out_array, out_schema) -> i32`: Fills nulls in a numeric column with a Float64 value.
+- `molars_fill_null_int64(array, schema, col_name, value, out_array, out_schema) -> i32`: Fills nulls in an integer column with an Int64 value.
+- `molars_fill_null_str(array, schema, col_name, value, out_array, out_schema) -> i32`: Fills nulls in a string column with a String value.
+- `molars_fill_null_strategy(array, schema, col_name, strategy, out_array, out_schema) -> i32`: Fills nulls using a Polars fill strategy (`forward`, `backward`, `min`, `max`, `mean`, `zero`, `one`).
 - `molars_groupby_agg(array, schema, keys_csv, aggs_csv, out_array, out_schema) -> i32`: Executes parallel multithreaded groupby aggregations.
 
 ### Lifecycle & Diagnostics

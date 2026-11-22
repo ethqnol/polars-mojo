@@ -2,9 +2,10 @@ from std.testing import (
     TestSuite,
     assert_equal,
     assert_true,
+    assert_false,
     assert_almost_equal,
 )
-from molars import DataFrame, Series
+from molars import DataFrame, Series, BooleanSeries
 
 
 def test_csv() raises:
@@ -269,6 +270,264 @@ def test_dataframe_groupby() raises:
     _ = mean_df
     _ = count_df
     _ = direct_df
+
+
+def test_boolean_series_and_comparisons() raises:
+    var df = DataFrame.read_csv("tests/sample.csv")
+    var score = df["score"]
+    var count = df["count"]
+    var name = df["name"]
+
+    var high_score = score > 85.0
+    assert_equal(len(high_score), 5)
+    assert_equal(high_score.sum(), 3)
+    assert_true(high_score[0])
+    assert_false(high_score[1])
+    assert_true(high_score.any())
+    assert_false(high_score.all())
+
+    var mid_count = (count >= 20) & (count <= 40)
+    assert_equal(mid_count.sum(), 3)
+
+    var combined = high_score | mid_count
+    assert_equal(combined.sum(), 5)
+    assert_true(combined.all())
+
+    var inverted = ~high_score
+    assert_equal(inverted.sum(), 2)
+    assert_equal((high_score ^ mid_count).sum(), 4)
+
+    var eq_alice = name == "Alice"
+    assert_equal(eq_alice.sum(), 1)
+    assert_true(eq_alice[0])
+
+    var contains_li = name.str_contains("li")
+    assert_equal(contains_li.sum(), 2)  # Alice, Charlie
+    assert_true(name.str_starts_with("Al")[0])
+    assert_true(name.str_ends_with("ve")[4])
+
+    var self_eq = count == count
+    assert_true(self_eq.all())
+    _ = df
+
+
+def test_filter() raises:
+    var df = DataFrame.read_csv("tests/sample.csv")
+
+    var filtered = df.filter(df["score"] > 85.0)
+    assert_equal(filtered.height(), 3)
+    assert_equal(filtered["name"].get_string(0), "Alice")
+    assert_equal(filtered["name"].get_string(1), "David")
+    assert_equal(filtered["name"].get_string(2), "Eve")
+
+    var compound = df.filter((df["score"] > 80.0) & (df["count"] <= 30))
+    assert_equal(compound.height(), 2)
+    assert_equal(compound["name"].get_string(0), "Alice")
+    assert_equal(compound["name"].get_string(1), "Bob")
+
+    var list_mask: List[Bool] = [True, False, False, False, True]
+    var list_filtered = df.filter(list_mask)
+    assert_equal(list_filtered.height(), 2)
+    assert_equal(list_filtered["name"].get_string(0), "Alice")
+    assert_equal(list_filtered["name"].get_string(1), "Eve")
+    _ = df
+    _ = filtered
+    _ = compound
+    _ = list_filtered
+
+
+def test_sort() raises:
+    var df = DataFrame.read_csv("tests/sample.csv")
+
+    var asc = df.sort("score")
+    assert_almost_equal(asc["score"].get_float64(0), 78.5, atol=0.01)
+    assert_equal(asc["name"].get_string(0), "Charlie")
+    assert_almost_equal(asc["score"].get_float64(4), 95.5, atol=0.01)
+
+    var desc = df.sort("score", descending=True)
+    assert_almost_equal(desc["score"].get_float64(0), 95.5, atol=0.01)
+    assert_equal(desc["name"].get_string(0), "Alice")
+
+    with open("target/tmp_sort_multi.csv", "w") as f:
+        f.write("grp,val\n1,10\n1,30\n2,5\n2,20\n")
+    var mdf = DataFrame.read_csv("target/tmp_sort_multi.csv")
+    var msorted = mdf.sort(["grp", "val"], [False, True])
+    assert_equal(msorted["grp"].get_int64(0), 1)
+    assert_equal(msorted["val"].get_int64(0), 30)
+    assert_equal(msorted["val"].get_int64(1), 10)
+    assert_equal(msorted["grp"].get_int64(2), 2)
+    assert_equal(msorted["val"].get_int64(2), 20)
+    assert_equal(msorted["val"].get_int64(3), 5)
+
+    _ = df
+    _ = asc
+    _ = desc
+    _ = mdf
+    _ = msorted
+
+
+def test_join() raises:
+    with open("target/tmp_join_left.csv", "w") as f:
+        f.write("id,name\n1,Alice\n2,Bob\n3,Charlie\n")
+    with open("target/tmp_join_right.csv", "w") as f:
+        f.write("id,dept\n2,Eng\n3,Sales\n4,HR\n")
+    with open("target/tmp_join_right_renamed.csv", "w") as f:
+        f.write("user_id,dept\n2,Eng\n3,Sales\n4,HR\n")
+
+    var left = DataFrame.read_csv("target/tmp_join_left.csv")
+    var right = DataFrame.read_csv("target/tmp_join_right.csv")
+    var right2 = DataFrame.read_csv("target/tmp_join_right_renamed.csv")
+
+    var inner = left.join(right, "id", "inner").sort("id")
+    assert_equal(inner.height(), 2)
+    assert_equal(inner["name"].get_string(0), "Bob")
+    assert_equal(inner["dept"].get_string(0), "Eng")
+
+    var left_j = left.join(right, on="id", how="left").sort("id")
+    assert_equal(left_j.height(), 3)
+    assert_true(left_j["dept"].is_null(0))
+    assert_equal(left_j["dept"].get_as_string(0), "null")
+    assert_equal(left_j["dept"].get_string(1), "Eng")
+
+    var full_j = left.join(right, on="id", how="full")
+    assert_equal(full_j.height(), 4)
+
+    var semi_j = left.join(right, on="id", how="semi")
+    assert_equal(semi_j.height(), 2)
+    assert_equal(semi_j.width(), 2)
+
+    var anti_j = left.join(right, on="id", how="anti")
+    assert_equal(anti_j.height(), 1)
+    assert_equal(anti_j["name"].get_string(0), "Alice")
+
+    var cross_j = left.join(right, how="cross")
+    assert_equal(cross_j.height(), 9)
+
+    var diff_keys = left.join(right2, left_on="id", right_on="user_id", how="inner")
+    assert_equal(diff_keys.height(), 2)
+
+    _ = left
+    _ = right
+    _ = right2
+    _ = inner
+    _ = left_j
+    _ = full_j
+    _ = semi_j
+    _ = anti_j
+    _ = cross_j
+    _ = diff_keys
+
+
+def test_null_handling() raises:
+    with open("target/tmp_nulls.csv", "w") as f:
+        f.write("id,val,tag,flag\n1,10.0,a,true\n2,,b,false\n3,30.0,,\n4,,,true\n")
+
+    var df = DataFrame.read_csv("target/tmp_nulls.csv")
+    var val = df["val"]
+    var flag = df["flag"]
+
+    assert_true(val.has_nulls())
+    assert_equal(val.count_nulls(), 2)
+    assert_false(val.is_null(0))
+    assert_true(val.is_valid(0))
+    assert_true(val.is_null(1))
+    assert_equal(val.get_as_string(1), "null")
+
+    var null_mask = val.is_null()
+    assert_equal(null_mask.sum(), 2)
+    assert_true(null_mask[1])
+    assert_true(null_mask[3])
+
+    var not_null_mask = val.is_not_null()
+    assert_equal(not_null_mask.sum(), 2)
+
+    var filled_vals = val.fill_null(0.0)
+    assert_almost_equal(filled_vals[1], 0.0, atol=0.01)
+    assert_almost_equal(filled_vals[2], 30.0, atol=0.01)
+
+    var filled_tags = df["tag"].fill_null_string("none")
+    assert_equal(filled_tags[2], "none")
+
+    assert_true(flag.get_bool(0))
+    assert_false(flag.get_bool(1))
+    var b_series = flag.to_bool_series()
+    assert_equal(b_series.sum(), 2)
+
+    var dn_all = df.drop_nulls()
+    assert_equal(dn_all.height(), 1)
+    var dn_sub = df.drop_nulls("val")
+    assert_equal(dn_sub.height(), 2)
+
+    var ff_df = df.fill_null("val", -1.0)
+    assert_almost_equal(ff_df["val"].get_float64(1), -1.0, atol=0.01)
+
+    var fs_df = df.fill_null("tag", "missing")
+    assert_equal(fs_df["tag"].get_string(2), "missing")
+
+    var ffill_df = df.fill_null_strategy("forward", "val")
+    assert_almost_equal(ffill_df["val"].get_float64(1), 10.0, atol=0.01)
+    assert_almost_equal(ffill_df["val"].get_float64(3), 30.0, atol=0.01)
+
+    var sorted_nl = df.sort("val", descending=False, nulls_last=True)
+    assert_almost_equal(sorted_nl["val"].get_float64(0), 10.0, atol=0.01)
+    assert_true(sorted_nl["val"].is_null(2))
+    assert_true(sorted_nl["val"].is_null(3))
+
+    _ = df
+    _ = dn_all
+    _ = dn_sub
+    _ = ff_df
+    _ = fs_df
+    _ = ffill_df
+    _ = sorted_nl
+
+
+def test_temporal_types() raises:
+    with open("target/tmp_temporal.csv", "w") as f:
+        f.write("dt,ts,val\n2024-01-01,2024-01-01 00:00:00,10\n2024-01-03,2024-01-03 12:30:45,30\n,,20\n")
+
+    var df = DataFrame.read_csv("target/tmp_temporal.csv", try_parse_dates=True)
+    var dt = df["dt"]
+    var ts = df["ts"]
+
+    assert_true(dt.is_date())
+    assert_true(dt.is_temporal())
+    assert_equal(dt.temporal_unit(), "d")
+    assert_equal(dt.get_date_days(0), 19723)
+    assert_equal(dt.get_date_iso(0), "2024-01-01")
+    assert_equal(dt.get_date_iso(1), "2024-01-03")
+    assert_equal(dt.get_date_iso(2), "null")
+    assert_equal(dt.get_as_string(0), "2024-01-01")
+
+    assert_true(ts.is_datetime())
+    assert_equal(ts.get_datetime_iso(0), "2024-01-01T00:00:00")
+    assert_equal(ts.get_datetime_iso(1), "2024-01-03T12:30:45")
+    assert_equal(ts.get_datetime_iso(2), "null")
+
+    var clean = df.filter(dt.is_not_null())
+    assert_equal(clean.height(), 2)
+    var sorted_dt = clean.sort("dt", descending=True)
+    assert_equal(sorted_dt["dt"].get_date_iso(0), "2024-01-03")
+
+    # Test Duration column via Parquet roundtrip + SQL timestamp subtraction
+    df.write_parquet("target/tmp_temporal.parquet")
+    var dur_df = DataFrame.sql(
+        "SELECT (ts - CAST(dt AS TIMESTAMP)) AS elapsed FROM tbl WHERE dt IS NOT NULL",
+        "tbl",
+        "target/tmp_temporal.parquet",
+    )
+    var elapsed = dur_df["elapsed"]
+    assert_true(elapsed.is_duration())
+    assert_true(elapsed.is_temporal())
+    assert_equal(elapsed.get_duration(0), 0)
+    assert_true(elapsed.get_duration(1) > 0)
+    assert_equal(elapsed.get_duration_string(0), "0us")
+    assert_equal(elapsed.get_duration_string(1), "45045000000us")
+
+    _ = df
+    _ = clean
+    _ = sorted_dt
+    _ = dur_df
 
 
 def main() raises:

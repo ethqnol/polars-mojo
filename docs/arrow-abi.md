@@ -60,9 +60,13 @@ The `ArrowSchema.format` string identifies the data type:
 | `f` | Float32 | `float` | `Float32` |
 | `l` | Int64 | `int64_t` | `Int64` |
 | `i` | Int32 | `int32_t` | `Int32` |
+| `b` | Boolean | `uint8_t*` (bit-packed) | `Bool` / `BooleanSeries` |
 | `u` | Utf8 | `uint8_t*` (32-bit offsets) | `String` |
 | `U` | LargeUtf8 | `uint8_t*` (64-bit offsets) | `String` |
 | `vu` | Utf8View (StringView) | `16-byte descriptors` + variadic buffers | `String` |
+| `tdD` | Date32 | `int32_t` (days since epoch) | `Int32` / ISO `String` |
+| `tss:`/`tsm:`/`tsu:`/`tsn:` | Timestamp (Datetime) | `int64_t` (ticks since epoch) | `Int64` / ISO `String` |
+| `tDs`/`tDm`/`tDu`/`tDn` | Duration | `int64_t` (elapsed ticks) | `Int64` / `String` |
 | `+s` | Struct | Nested child arrays | Root table |
 
 ---

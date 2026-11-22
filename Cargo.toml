@@ -8,5 +8,5 @@ name = "polars_ffi"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-polars = { version = "0.46", default-features = false, features = ["csv", "parquet", "lazy", "sql"] }
+polars = { version = "0.46", default-features = false, features = ["csv", "parquet", "lazy", "sql", "dtype-date", "dtype-datetime", "dtype-duration", "semi_anti_join", "cross_join"] }
 polars-arrow = "0.46"

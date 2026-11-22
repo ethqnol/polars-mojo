@@ -28,18 +28,20 @@ struct DataFrame(Movable, Writable):
 
 ```mojo
 @staticmethod
-def read_csv(path: String) raises -> DataFrame
+def read_csv(path: String, try_parse_dates: Bool = False) raises -> DataFrame
 ```
 
-Reads a CSV file into a `DataFrame` using the Polars multithreaded reader.
+Reads a CSV file into a `DataFrame` using the Polars multithreaded reader. Set `try_parse_dates=True` to automatically parse ISO-8601 date and datetime strings into native `Date` (`tdD`) and `Datetime` (`ts*`) columns.
 
 - **Parameters**:
   - `path` (`String`): Path to the CSV file.
+  - `try_parse_dates` (`Bool`): Automatically parse date/datetime columns when `True` (default `False`).
 - **Returns**: `DataFrame` containing the parsed columns.
 - **Raises**: `Error` if the file cannot be opened, contains invalid UTF-8 in the path, or cannot be parsed.
 
 ```mojo
 var df = DataFrame.read_csv("data.csv")
+var dated_df = DataFrame.read_csv("events.csv", try_parse_dates=True)
 ```
 
 ---
@@ -234,6 +236,74 @@ Renames a column, returning a new DataFrame with the updated column name.
 
 ```mojo
 var renamed = df.rename("score", "rating")
+```
+
+---
+
+## Filtering, Sorting, Joins & Null Remediation
+
+### `filter`
+
+```mojo
+def filter(self, mask: BooleanSeries) raises -> DataFrame
+def filter(self, mask: List[Bool]) raises -> DataFrame
+```
+
+Filters rows using a `BooleanSeries` (produced by `Series` comparison operators or `is_null()` / `is_not_null()`) or a `List[Bool]`.
+
+```mojo
+var top = df.filter((df["score"] > 85.0) & (df["count"] <= 40))
+```
+
+### `sort`
+
+```mojo
+def sort(self, by: String, descending: Bool = False, nulls_last: Bool = False) raises -> DataFrame
+def sort(self, by: List[String], descending: Bool = False, nulls_last: Bool = False) raises -> DataFrame
+def sort(self, by: List[String], descending: List[Bool], nulls_last: Bool = False) raises -> DataFrame
+```
+
+Sorts the DataFrame by one or more columns with optional per-column direction and `nulls_last` ordering.
+
+```mojo
+var ordered = df.sort(["dept", "score"], [False, True], nulls_last=True)
+```
+
+### `join`
+
+```mojo
+def join(self, other: DataFrame, on: String = "", how: String = "inner") raises -> DataFrame
+def join(self, other: DataFrame, *, left_on: String, right_on: String, how: String = "inner") raises -> DataFrame
+def join(self, other: DataFrame, on: List[String], how: String = "inner") raises -> DataFrame
+def join(self, other: DataFrame, *, left_on: List[String], right_on: List[String], how: String = "inner") raises -> DataFrame
+```
+
+Joins two in-memory DataFrames. Supported `how` strategies: `"inner"`, `"left"`, `"right"`, `"full"` (or `"outer"`), `"semi"`, `"anti"`, and `"cross"`.
+
+```mojo
+var merged = left.join(right, on="id", how="left")
+var matched = left.join(right, left_on="user_id", right_on="id", how="inner")
+```
+
+### `drop_nulls`, `fill_null`, and `fill_null_strategy`
+
+```mojo
+def drop_nulls(self) raises -> DataFrame
+def drop_nulls(self, subset: String) raises -> DataFrame
+def drop_nulls(self, subset: List[String]) raises -> DataFrame
+
+def fill_null(self, column: String, value: Float64) raises -> DataFrame
+def fill_null(self, column: String, value: Int64) raises -> DataFrame
+def fill_null(self, column: String, value: String) raises -> DataFrame
+def fill_null_strategy(self, strategy: String, column: String = "") raises -> DataFrame
+```
+
+Drops rows with null values (across all columns or a subset) or replaces nulls with a scalar value or strategy (`"forward"`, `"backward"`, `"min"`, `"max"`, `"mean"`, `"zero"`, `"one"`).
+
+```mojo
+var clean = df.drop_nulls("score")
+var filled = df.fill_null("score", 0.0)
+var ffilled = df.fill_null_strategy("forward", "score")
 ```
 
 ---

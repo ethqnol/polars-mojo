@@ -366,6 +366,142 @@ Retrieves the Arrow format code of the column at col_idx.
 
 ---
 
+##### `def read_csv_ex(path: String, try_parse_dates: Bool, array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `path` (`String`)
+- `try_parse_dates` (`Bool`)
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def filter_df(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], mask_ptr: Pointer[UInt8, MutUntrackedOrigin], mask_len: Int, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `mask_ptr` (`Pointer[UInt8, MutUntrackedOrigin]`)
+- `mask_len` (`Int`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def sort_df(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], by_csv: String, descending_csv: String, nulls_last: Bool, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `by_csv` (`String`)
+- `descending_csv` (`String`)
+- `nulls_last` (`Bool`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def join_df(left_array: Pointer[ArrowArray, MutUntrackedOrigin], left_schema: Pointer[ArrowSchema, MutUntrackedOrigin], right_array: Pointer[ArrowArray, MutUntrackedOrigin], right_schema: Pointer[ArrowSchema, MutUntrackedOrigin], left_on_csv: String, right_on_csv: String, how: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `left_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `left_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `right_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `right_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `left_on_csv` (`String`)
+- `right_on_csv` (`String`)
+- `how` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def drop_nulls(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], subset_csv: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `subset_csv` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def fill_null_float64(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_name: String, value: Float64, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_name` (`String`)
+- `value` (`Float64`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def fill_null_int64(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_name: String, value: Int64, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_name` (`String`)
+- `value` (`Int64`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def fill_null_str(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_name: String, value: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_name` (`String`)
+- `value` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def fill_null_strategy(array: Pointer[ArrowArray, MutUntrackedOrigin], schema: Pointer[ArrowSchema, MutUntrackedOrigin], col_name: String, strategy: String, out_array: Pointer[ArrowArray, MutUntrackedOrigin], out_schema: Pointer[ArrowSchema, MutUntrackedOrigin]) -> Int32`
+
+**Arguments:**
+
+- `array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+- `col_name` (`String`)
+- `strategy` (`String`)
+- `out_array` (`Pointer[ArrowArray, MutUntrackedOrigin]`)
+- `out_schema` (`Pointer[ArrowSchema, MutUntrackedOrigin]`)
+
+**Returns:** `Int32`
+
+---
+
 ##### `def release_array(array: Pointer[ArrowArray, MutUntrackedOrigin])`
 
 **Arguments:**
@@ -389,6 +525,147 @@ Retrieves the Arrow format code of the column at col_idx.
 ---
 
 ## Module `molars.dataframe`
+
+### `struct BooleanSeries`
+
+**Implemented Traits**: `AnyType, Copyable, Deinitable, Movable, Sized, Writable`
+
+A boolean mask / column supporting element-wise logical operations and DataFrame filtering.
+
+#### Methods
+
+##### `def __init__(out self, var data: List[Bool], name: String = "")`
+
+**Arguments:**
+
+- `data` (`List[Bool]`)
+- `name` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __init__(out self, *, copy: Self)`
+
+**Arguments:**
+
+- `copy` (`Self`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __init__(out self, *, deinit move: Self)`
+
+**Arguments:**
+
+- `move` (`Self`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __getitem__(self, idx: Int) -> Bool`
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Bool`
+
+---
+
+##### `def __invert__(self) -> Self`
+
+**Returns:** `Self`
+
+---
+
+##### `def __and__(self, other: Self) -> Self`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __or__(self, other: Self) -> Self`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __xor__(self, other: Self) -> Self`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `Self`
+
+---
+
+##### `def __len__(self) -> Int`
+
+**Returns:** `Int`
+
+---
+
+##### `def len(self) -> Int`
+
+**Returns:** `Int`
+
+---
+
+##### `def count_true(self) -> Int`
+
+**Returns:** `Int`
+
+---
+
+##### `def sum(self) -> Int`
+
+**Returns:** `Int`
+
+---
+
+##### `def count_false(self) -> Int`
+
+**Returns:** `Int`
+
+---
+
+##### `def any(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def all(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def to_list(self) -> List[Bool]`
+
+**Returns:** `List[Bool]`
+
+---
+
+##### `def write_to(self, mut writer: T)`
+
+**Arguments:**
+
+- `writer` (`T`)
+
+---
 
 ### `struct DataFrame`
 
@@ -455,13 +732,14 @@ Subscript indexing operator to retrieve a column by index.
 
 ---
 
-##### `def read_csv(path: String) -> Self`
+##### `def read_csv(path: String, try_parse_dates: Bool = False) -> Self`
 
 Reads a CSV file into a DataFrame using the Polars multithreaded reader.
 
 **Arguments:**
 
 - `path` (`String`): Filesystem path to the CSV file.
+- `try_parse_dates` (`Bool`): Automatically parse ISO date/datetime strings when True.
 
 **Returns:** `Self` - DataFrame populated with columns exported via the Arrow C Data Interface.
 
@@ -677,6 +955,214 @@ Renames a column in the DataFrame.
 
 ---
 
+##### `def filter(self, mask: List[Bool]) -> Self`
+
+Filters DataFrame rows using a boolean mask list.
+
+**Arguments:**
+
+- `mask` (`List[Bool]`)
+
+**Returns:** `Self`
+
+---
+
+##### `def filter(self, mask: BooleanSeries) -> Self`
+
+Filters DataFrame rows using a BooleanSeries mask.
+
+**Arguments:**
+
+- `mask` (`BooleanSeries`)
+
+**Returns:** `Self`
+
+---
+
+##### `def sort(self, by: String, descending: Bool = False, nulls_last: Bool = False) -> Self`
+
+Sorts the DataFrame by one or more comma-separated column names.
+
+**Arguments:**
+
+- `by` (`String`)
+- `descending` (`Bool`)
+- `nulls_last` (`Bool`)
+
+**Returns:** `Self`
+
+---
+
+##### `def sort(self, by: List[String], descending: Bool = False, nulls_last: Bool = False) -> Self`
+
+Sorts the DataFrame by a list of columns with a shared sort direction.
+
+**Arguments:**
+
+- `by` (`List[String]`)
+- `descending` (`Bool`)
+- `nulls_last` (`Bool`)
+
+**Returns:** `Self`
+
+---
+
+##### `def sort(self, by: List[String], descending: List[Bool], nulls_last: Bool = False) -> Self`
+
+Sorts the DataFrame by a list of columns with per-column sort directions.
+
+**Arguments:**
+
+- `by` (`List[String]`)
+- `descending` (`List[Bool]`)
+- `nulls_last` (`Bool`)
+
+**Returns:** `Self`
+
+---
+
+##### `def join(self, other: Self, on: String = "", how: String = "inner") -> Self`
+
+Joins this DataFrame with another DataFrame on shared column name(s).
+
+**Arguments:**
+
+- `other` (`Self`)
+- `on` (`String`)
+- `how` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def join(self, other: Self, *, left_on: String, right_on: String, how: String = "inner") -> Self`
+
+Joins this DataFrame with another DataFrame on distinct left/right column names.
+
+**Arguments:**
+
+- `other` (`Self`)
+- `left_on` (`String`)
+- `right_on` (`String`)
+- `how` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def join(self, other: Self, on: List[String], how: String = "inner") -> Self`
+
+Joins this DataFrame with another DataFrame on a list of shared column names.
+
+**Arguments:**
+
+- `other` (`Self`)
+- `on` (`List[String]`)
+- `how` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def join(self, other: Self, *, left_on: List[String], right_on: List[String], how: String = "inner") -> Self`
+
+Joins this DataFrame with another DataFrame on lists of left and right column names.
+
+**Arguments:**
+
+- `other` (`Self`)
+- `left_on` (`List[String]`)
+- `right_on` (`List[String]`)
+- `how` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def drop_nulls(self) -> Self`
+
+Drops rows containing any null values across all columns.
+
+**Returns:** `Self`
+
+---
+
+##### `def drop_nulls(self, subset: String) -> Self`
+
+Drops rows containing null values in the specified comma-separated columns.
+
+**Arguments:**
+
+- `subset` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def drop_nulls(self, subset: List[String]) -> Self`
+
+Drops rows containing null values in the specified list of columns.
+
+**Arguments:**
+
+- `subset` (`List[String]`)
+
+**Returns:** `Self`
+
+---
+
+##### `def fill_null(self, column: String, value: Float64) -> Self`
+
+Fills null values in a numeric column with a Float64 scalar.
+
+**Arguments:**
+
+- `column` (`String`)
+- `value` (`Float64`)
+
+**Returns:** `Self`
+
+---
+
+##### `def fill_null(self, column: String, value: Int64) -> Self`
+
+Fills null values in an integer column with an Int64 scalar.
+
+**Arguments:**
+
+- `column` (`String`)
+- `value` (`Int64`)
+
+**Returns:** `Self`
+
+---
+
+##### `def fill_null(self, column: String, value: String) -> Self`
+
+Fills null values in a string column with a String scalar.
+
+**Arguments:**
+
+- `column` (`String`)
+- `value` (`String`)
+
+**Returns:** `Self`
+
+---
+
+##### `def fill_null_strategy(self, strategy: String, column: String = "") -> Self`
+
+Fills null values using a named strategy ('forward', 'backward', 'min', 'max', 'mean', 'zero', 'one').
+
+**Arguments:**
+
+- `strategy` (`String`)
+- `column` (`String`)
+
+**Returns:** `Self`
+
+---
+
 ##### `def group_by(self, keys: List[String]) -> GroupBy`
 
 Groups the DataFrame by the specified column names.
@@ -838,6 +1324,206 @@ Fields:
     buffers: Pointer array to underlying Arrow buffers.
 
 #### Methods
+
+##### `def __lt__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __lt__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __lt__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __le__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __le__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __le__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __eq__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __eq__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __eq__(self, scalar: String) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`String`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __eq__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ne__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ne__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ne__(self, scalar: String) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`String`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ne__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __gt__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __gt__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __gt__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ge__(self, scalar: Float64) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Float64`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ge__(self, scalar: Int) -> BooleanSeries`
+
+**Arguments:**
+
+- `scalar` (`Int`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def __ge__(self, other: Self) -> BooleanSeries`
+
+**Arguments:**
+
+- `other` (`Self`)
+
+**Returns:** `BooleanSeries`
+
+---
 
 ##### `def __add__(self, other: Self) -> List[Float64]`
 
@@ -1084,6 +1770,246 @@ Formats the value at index as a string across all supported data types.
 - `idx` (`Int`): Zero-based row index.
 
 **Returns:** `String` - String representation of the element.
+
+---
+
+##### `def is_null(self, idx: Int) -> Bool`
+
+Returns True if the element at idx is null in the Arrow validity bitmap.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Bool`
+
+---
+
+##### `def is_null(self) -> BooleanSeries`
+
+Returns a BooleanSeries mask where True indicates a null value.
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def is_valid(self, idx: Int) -> Bool`
+
+Returns True if the element at idx is non-null.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Bool`
+
+---
+
+##### `def count_nulls(self) -> Int`
+
+Returns the number of null elements in the Series.
+
+**Returns:** `Int`
+
+---
+
+##### `def has_nulls(self) -> Bool`
+
+Returns True if the Series contains one or more null values.
+
+**Returns:** `Bool`
+
+---
+
+##### `def is_not_null(self) -> BooleanSeries`
+
+Returns a BooleanSeries mask where True indicates a non-null value.
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def fill_null(self, value: Float64) -> List[Float64]`
+
+Materializes the numeric Series as List[Float64] with nulls replaced by value.
+
+**Arguments:**
+
+- `value` (`Float64`)
+
+**Returns:** `List[Float64]`
+
+---
+
+##### `def fill_null_int64(self, value: Int64) -> List[Int64]`
+
+Materializes an integer/temporal Series as List[Int64] with nulls replaced by value.
+
+**Arguments:**
+
+- `value` (`Int64`)
+
+**Returns:** `List[Int64]`
+
+---
+
+##### `def fill_null_string(self, value: String) -> List[String]`
+
+Materializes a string Series as List[String] with nulls replaced by value.
+
+**Arguments:**
+
+- `value` (`String`)
+
+**Returns:** `List[String]`
+
+---
+
+##### `def get_bool(self, idx: Int) -> Bool`
+
+Returns the Bool scalar at the specified row index for a Boolean ('b') Series.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Bool`
+
+---
+
+##### `def to_bool_series(self) -> BooleanSeries`
+
+Converts a Boolean ('b') Series into a BooleanSeries (nulls become False).
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def is_date(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def is_datetime(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def is_duration(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def is_temporal(self) -> Bool`
+
+**Returns:** `Bool`
+
+---
+
+##### `def temporal_unit(self) -> String`
+
+Returns the temporal unit string ('d', 's', 'ms', 'us', 'ns').
+
+**Returns:** `String`
+
+---
+
+##### `def as_date32_ptr(self) -> Pointer[Int32, MutUntrackedOrigin]`
+
+Returns a typed pointer to the underlying Date32 ('tdD') Int32 buffer.
+
+**Returns:** `Pointer[Int32, MutUntrackedOrigin]`
+
+---
+
+##### `def as_timestamp_ptr(self) -> Pointer[Int64, MutUntrackedOrigin]`
+
+Returns a typed pointer to the underlying Timestamp ('ts*') Int64 buffer.
+
+**Returns:** `Pointer[Int64, MutUntrackedOrigin]`
+
+---
+
+##### `def as_duration_ptr(self) -> Pointer[Int64, MutUntrackedOrigin]`
+
+Returns a typed pointer to the underlying Duration ('tD*') Int64 buffer.
+
+**Returns:** `Pointer[Int64, MutUntrackedOrigin]`
+
+---
+
+##### `def get_date_days(self, idx: Int) -> Int32`
+
+Returns days since Unix epoch (1970-01-01) for a Date32 element.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Int32`
+
+---
+
+##### `def get_date_iso(self, idx: Int) -> String`
+
+Formats a Date32 element as an ISO-8601 date string ('YYYY-MM-DD' or 'null').
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `String`
+
+---
+
+##### `def get_timestamp(self, idx: Int) -> Int64`
+
+Returns the raw integer timestamp ticks for a Datetime element.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Int64`
+
+---
+
+##### `def get_datetime_iso(self, idx: Int) -> String`
+
+Formats a Datetime element as an ISO-8601 datetime string (or 'null').
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `String`
+
+---
+
+##### `def get_duration(self, idx: Int) -> Int64`
+
+Returns the raw integer duration ticks for a Duration element.
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `Int64`
+
+---
+
+##### `def get_duration_string(self, idx: Int) -> String`
+
+Formats a Duration element with its time unit (e.g. '5000ms' or 'null').
+
+**Arguments:**
+
+- `idx` (`Int`)
+
+**Returns:** `String`
 
 ---
 
@@ -1352,5 +2278,41 @@ Converts non-Float64 numeric types to Float64 dynamically.
 - `func` (`Func`): A function or closure mapping Float64 -> Float64 (can raise).
 
 **Returns:** `List[Float64]` - A List[Float64] containing the transformed values.
+
+---
+
+##### `def str_contains(self, substr: String) -> BooleanSeries`
+
+Returns a BooleanSeries checking whether each string contains substr.
+
+**Arguments:**
+
+- `substr` (`String`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def str_starts_with(self, prefix: String) -> BooleanSeries`
+
+Returns a BooleanSeries checking whether each string starts with prefix.
+
+**Arguments:**
+
+- `prefix` (`String`)
+
+**Returns:** `BooleanSeries`
+
+---
+
+##### `def str_ends_with(self, suffix: String) -> BooleanSeries`
+
+Returns a BooleanSeries checking whether each string ends with suffix.
+
+**Arguments:**
+
+- `suffix` (`String`)
+
+**Returns:** `BooleanSeries`
 
 ---

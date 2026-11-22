@@ -28,7 +28,7 @@ struct Series(Copyable, Movable):
 ### Fields
 
 - `name`: Column name.
-- `format`: Arrow C format string code (`"g"`, `"f"`, `"l"`, `"i"`, `"u"`, `"U"`, `"vu"`).
+- `format`: Arrow C format string code (`"g"`, `"f"`, `"l"`, `"i"`, `"b"`, `"u"`, `"U"`, `"vu"`, `"tdD"`, `"tss:"`/`"tsm:"`/`"tsu:"`/`"tsn:"`, `"tDs"`/`"tDm"`/`"tDu"`/`"tDn"`).
 - `length`: Number of elements in the column.
 - `offset`: Slice offset into the underlying Arrow buffer (0 for un-sliced series).
 - `null_count`: Number of nulls in the column.
@@ -273,4 +273,64 @@ def vat_fn(x: Float64) raises {imm multiplier} -> Float64:
     return x * multiplier
 
 var taxed = price.apply(vat_fn)
+```
+
+---
+
+## Null Inspection, Comparisons & `BooleanSeries`
+
+`Series` inspects Arrow validity bitmaps zero-copy (`buffers[0]`) and supports element-wise comparisons returning `BooleanSeries`.
+
+### Null Inspection & Remediation
+
+```mojo
+def is_null(self, idx: Int) -> Bool
+def is_valid(self, idx: Int) -> Bool
+def count_nulls(self) -> Int
+def has_nulls(self) -> Bool
+def is_null(self) -> BooleanSeries
+def is_not_null(self) -> BooleanSeries
+def fill_null(self, value: Float64) raises -> List[Float64]
+def fill_null_int64(self, value: Int64) raises -> List[Int64]
+def fill_null_string(self, value: String) raises -> List[String]
+```
+
+### Boolean Access & Comparisons
+
+```mojo
+def get_bool(self, idx: Int) raises -> Bool
+def to_bool_series(self) raises -> BooleanSeries
+
+# Numeric / Integer / Series comparisons (>, >=, <, <=, ==, !=) -> BooleanSeries
+# String predicates: ==, !=, str_contains, str_starts_with, str_ends_with -> BooleanSeries
+```
+
+`BooleanSeries` implements logical `&`, `|`, `^`, `~` as well as `len()`, `sum()` / `count_true()`, `count_false()`, `any()`, `all()`, and `to_list()`.
+
+```mojo
+var mask = (df["score"] > 85.0) & df["name"].str_starts_with("A")
+var filtered = df.filter(mask)
+```
+
+---
+
+## Temporal Types (`Date`, `Datetime`, `Duration`)
+
+```mojo
+def is_date(self) -> Bool
+def is_datetime(self) -> Bool
+def is_duration(self) -> Bool
+def is_temporal(self) -> Bool
+def temporal_unit(self) raises -> String
+
+def as_date32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]
+def as_timestamp_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]
+def as_duration_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]
+
+def get_date_days(self, idx: Int) raises -> Int32
+def get_date_iso(self, idx: Int) raises -> String
+def get_timestamp(self, idx: Int) raises -> Int64
+def get_datetime_iso(self, idx: Int) raises -> String
+def get_duration(self, idx: Int) raises -> Int64
+def get_duration_string(self, idx: Int) raises -> String
 ```

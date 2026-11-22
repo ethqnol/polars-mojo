@@ -10,6 +10,206 @@ from molars.arrow_abi import (
 from molars.bridge import MolarsBridge
 
 
+def _pad_int(val: Int64, width: Int) -> String:
+    var s = String(val)
+    var pad = width - s.byte_length()
+    var prefix = String("")
+    for _ in range(pad):
+        prefix += "0"
+    return prefix + s
+
+
+def _floor_div_mod(val: Int64, divisor: Int64) -> Tuple[Int64, Int64]:
+    """Euclidean floor division and non-negative remainder for positive divisor."""
+    if val >= 0:
+        return (val // divisor, val % divisor)
+    var neg = -val
+    var q = (neg + divisor - 1) // divisor
+    return (-q, q * divisor - neg)
+
+
+def _days_to_iso_date(days: Int64) -> String:
+    """Converts days since 1970-01-01 to ISO-8601 YYYY-MM-DD."""
+    var z = days + 719468
+    var era_rem = _floor_div_mod(z, 146097)
+    var era = era_rem[0]
+    var doe = era_rem[1]
+    var yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    var y = yoe + era * 400
+    var doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    var mp = (5 * doy + 2) // 153
+    var d = doy - (153 * mp + 2) // 5 + 1
+    var m = mp + 3 if mp < 10 else mp - 9
+    if m <= 2:
+        y += 1
+    var year_str: String
+    if y < 0:
+        year_str = "-" + _pad_int(-y, 4)
+    else:
+        year_str = _pad_int(y, 4)
+    return year_str + "-" + _pad_int(m, 2) + "-" + _pad_int(d, 2)
+
+
+def _timestamp_to_iso(ts: Int64, unit: String) -> String:
+    """Converts a Unix timestamp in the given unit ('s', 'ms', 'us', 'ns') to ISO-8601."""
+    var ticks_per_sec: Int64 = 1
+    var frac_width = 0
+    if unit == "ms":
+        ticks_per_sec = 1_000
+        frac_width = 3
+    elif unit == "us":
+        ticks_per_sec = 1_000_000
+        frac_width = 6
+    elif unit == "ns":
+        ticks_per_sec = 1_000_000_000
+        frac_width = 9
+
+    var sec_frac = _floor_div_mod(ts, ticks_per_sec)
+    var total_secs = sec_frac[0]
+    var frac = sec_frac[1]
+
+    var day_sec = _floor_div_mod(total_secs, 86400)
+    var days = day_sec[0]
+    var rem_secs = day_sec[1]
+
+    var hours = rem_secs // 3600
+    var mins = (rem_secs % 3600) // 60
+    var secs = rem_secs % 60
+
+    var base = (
+        _days_to_iso_date(days)
+        + "T"
+        + _pad_int(hours, 2)
+        + ":"
+        + _pad_int(mins, 2)
+        + ":"
+        + _pad_int(secs, 2)
+    )
+    if frac_width > 0 and frac > 0:
+        return base + "." + _pad_int(frac, frac_width)
+    return base
+
+
+def _join_csv(items: List[String]) -> String:
+    var out = String("")
+    for i in range(len(items)):
+        out += items[i]
+        if i + 1 < len(items):
+            out += ","
+    return out
+
+
+struct BooleanSeries(Copyable, Movable, Sized, Writable):
+    """A boolean mask / column supporting element-wise logical operations and DataFrame filtering."""
+
+    var name: String
+    var _data: List[Bool]
+
+    def __init__(out self, var data: List[Bool], name: String = ""):
+        self.name = name
+        self._data = data^
+
+    def __init__(out self, *, copy: Self):
+        self.name = copy.name
+        self._data = copy._data.copy()
+
+    def __init__(out self, *, deinit move: Self):
+        self.name = move.name^
+        self._data = move._data^
+
+    def __len__(self) -> Int:
+        return len(self._data)
+
+    def len(self) -> Int:
+        return len(self._data)
+
+    def __getitem__(self, idx: Int) raises -> Bool:
+        if idx < 0 or idx >= len(self._data):
+            raise Error("BooleanSeries index out of bounds: " + String(idx))
+        return self._data[idx]
+
+    def count_true(self) -> Int:
+        var c = 0
+        for i in range(len(self._data)):
+            if self._data[i]:
+                c += 1
+        return c
+
+    def sum(self) -> Int:
+        return self.count_true()
+
+    def count_false(self) -> Int:
+        return len(self._data) - self.count_true()
+
+    def any(self) -> Bool:
+        for i in range(len(self._data)):
+            if self._data[i]:
+                return True
+        return False
+
+    def all(self) -> Bool:
+        for i in range(len(self._data)):
+            if not self._data[i]:
+                return False
+        return True
+
+    def to_list(self) -> List[Bool]:
+        return self._data.copy()
+
+    def _combine[
+        op: StaticString
+    ](self, other: BooleanSeries) raises -> BooleanSeries:
+        var n = len(self._data)
+        if n != len(other._data):
+            raise Error(
+                "BooleanSeries lengths do not match: "
+                + String(n)
+                + " vs "
+                + String(len(other._data))
+            )
+        var out = List[Bool](capacity=n)
+        for i in range(n):
+            var a = self._data[i]
+            var b = other._data[i]
+            comptime if op == "and":
+                out.append(a and b)
+            elif op == "or":
+                out.append(a or b)
+            else:
+                out.append(a != b)
+        return BooleanSeries(out^, name=self.name)
+
+    def __and__(self, other: BooleanSeries) raises -> BooleanSeries:
+        return self._combine["and"](other)
+
+    def __or__(self, other: BooleanSeries) raises -> BooleanSeries:
+        return self._combine["or"](other)
+
+    def __xor__(self, other: BooleanSeries) raises -> BooleanSeries:
+        return self._combine["xor"](other)
+
+    def __invert__(self) -> BooleanSeries:
+        var n = len(self._data)
+        var out = List[Bool](capacity=n)
+        for i in range(n):
+            out.append(not self._data[i])
+        return BooleanSeries(out^, name=self.name)
+
+    def write_to(self, mut writer: Some[Writer]):
+        var n = len(self._data)
+        writer.write("BooleanSeries(name='", self.name, "', len=", n, ", [")
+        var preview = 5
+        if preview > n:
+            preview = n
+        for i in range(preview):
+            writer.write("true" if self._data[i] else "false")
+            if i + 1 < preview:
+                writer.write(", ")
+        if n > preview:
+            writer.write(", ...")
+        writer.write("])")
+
+
 @fieldwise_init
 struct Series(Copyable, Movable):
     """A zero-copy typed view over a single Apache Arrow array.
@@ -233,23 +433,51 @@ struct Series(Copyable, Movable):
         Returns:
             String representation of the element.
         """
+        if self.is_null(idx):
+            return "null"
+        var abs_idx = self.offset + idx
         if self.format == "g":
             var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Float64]()
-            return String(ptr[unsafe_offset=idx])
+            return String(ptr[unsafe_offset=abs_idx])
         elif self.format == "f":
             var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Float32]()
-            return String(ptr[unsafe_offset=idx])
+            return String(ptr[unsafe_offset=abs_idx])
         elif self.format == "l":
             var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
-            return String(ptr[unsafe_offset=idx])
+            return String(ptr[unsafe_offset=abs_idx])
         elif self.format == "i":
             var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
-            return String(ptr[unsafe_offset=idx])
+            return String(ptr[unsafe_offset=abs_idx])
+        elif self.format == "b":
+            var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[UInt8]()
+            var byte_val = ptr[unsafe_offset=abs_idx >> 3]
+            var bit = ((Int(byte_val) >> (abs_idx & 7)) & 1) != 0
+            return "true" if bit else "false"
+        elif self.format == "tdD":
+            var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
+            return _days_to_iso_date(Int64(ptr[unsafe_offset=abs_idx]))
+        elif self.format.startswith("ts"):
+            try:
+                var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
+                return _timestamp_to_iso(
+                    ptr[unsafe_offset=abs_idx], self.temporal_unit()
+                )
+            except:
+                return "<format " + self.format + ">"
+        elif self.format.startswith("tD"):
+            try:
+                var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
+                return (
+                    String(ptr[unsafe_offset=abs_idx])
+                    + self.temporal_unit()
+                )
+            except:
+                return "<format " + self.format + ">"
         elif self.format == "u":
             # Utf8: buffers[1] is 32-bit offsets, buffers[2] is bytes
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int32]()
-            var start = Int(off_ptr[unsafe_offset=self.offset + idx])
-            var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
+            var start = Int(off_ptr[unsafe_offset=abs_idx])
+            var end = Int(off_ptr[unsafe_offset=abs_idx + 1])
             var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[
                 UInt8
             ]()
@@ -260,8 +488,8 @@ struct Series(Copyable, Movable):
         elif self.format == "U":
             # LargeUtf8: buffers[1] is 64-bit offsets, buffers[2] is bytes
             var off_ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[Int64]()
-            var start = Int(off_ptr[unsafe_offset=self.offset + idx])
-            var end = Int(off_ptr[unsafe_offset=self.offset + idx + 1])
+            var start = Int(off_ptr[unsafe_offset=abs_idx])
+            var end = Int(off_ptr[unsafe_offset=abs_idx + 1])
             var str_bytes = self.buffers[unsafe_offset=2].unsafe_bitcast[
                 UInt8
             ]()
@@ -275,7 +503,7 @@ struct Series(Copyable, Movable):
             var raw_views = self.buffers[unsafe_offset=1].unsafe_bitcast[
                 UInt8
             ]()
-            var view_base = (self.offset + idx) * 16
+            var view_base = abs_idx * 16
             var u32_ptr = raw_views.unsafe_offset(view_base).unsafe_bitcast[
                 UInt32
             ]()
@@ -299,6 +527,302 @@ struct Series(Copyable, Movable):
                 return s
         else:
             return "<format " + self.format + ">"
+
+    def is_null(self, idx: Int) -> Bool:
+        """Returns True if the element at idx is null in the Arrow validity bitmap."""
+        if idx < 0 or idx >= self.length:
+            return False
+        if self.null_count == 0 or self.n_buffers <= 0:
+            return False
+        var validity_ptr = self.buffers[unsafe_offset=0].unsafe_bitcast[
+            UInt8
+        ]()
+        if Int(validity_ptr) == 0:
+            return False
+        var abs_idx = self.offset + idx
+        var byte_val = validity_ptr[unsafe_offset=abs_idx >> 3]
+        return ((Int(byte_val) >> (abs_idx & 7)) & 1) == 0
+
+    def is_valid(self, idx: Int) -> Bool:
+        """Returns True if the element at idx is non-null."""
+        return not self.is_null(idx)
+
+    def count_nulls(self) -> Int:
+        """Returns the number of null elements in the Series."""
+        if self.null_count >= 0:
+            return self.null_count
+        var cnt = 0
+        for i in range(self.length):
+            if self.is_null(i):
+                cnt += 1
+        return cnt
+
+    def has_nulls(self) -> Bool:
+        """Returns True if the Series contains one or more null values."""
+        return self.count_nulls() > 0
+
+    def is_null(self) -> BooleanSeries:
+        """Returns a BooleanSeries mask where True indicates a null value."""
+        var out = List[Bool](capacity=self.length)
+        for i in range(self.length):
+            out.append(self.is_null(i))
+        return BooleanSeries(out^, name=self.name)
+
+    def is_not_null(self) -> BooleanSeries:
+        """Returns a BooleanSeries mask where True indicates a non-null value."""
+        var out = List[Bool](capacity=self.length)
+        for i in range(self.length):
+            out.append(not self.is_null(i))
+        return BooleanSeries(out^, name=self.name)
+
+    def fill_null(self, value: Float64) raises -> List[Float64]:
+        """Materializes the numeric Series as List[Float64] with nulls replaced by value."""
+        var n = self.length
+        var out = List[Float64](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(value)
+            else:
+                out.append(self.get_float(i))
+        return out^
+
+    def fill_null_int64(self, value: Int64) raises -> List[Int64]:
+        """Materializes an integer/temporal Series as List[Int64] with nulls replaced by value."""
+        var n = self.length
+        var out = List[Int64](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(value)
+            else:
+                out.append(self._get_int64_like(i))
+        return out^
+
+    def fill_null_string(self, value: String) raises -> List[String]:
+        """Materializes a string Series as List[String] with nulls replaced by value."""
+        if self.format != "u" and self.format != "U" and self.format != "vu":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is not a string column (format '"
+                + self.format
+                + "')"
+            )
+        var n = self.length
+        var out = List[String](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(value)
+            else:
+                out.append(self.get_as_string(i))
+        return out^
+
+    def get_bool(self, idx: Int) raises -> Bool:
+        """Returns the Bool scalar at the specified row index for a Boolean ('b') Series."""
+        if self.format != "b":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Boolean ('b')"
+            )
+        if idx < 0 or idx >= self.length:
+            raise Error("Series index out of bounds: " + String(idx))
+        var ptr = self.buffers[unsafe_offset=1].unsafe_bitcast[UInt8]()
+        var abs_idx = self.offset + idx
+        var byte_val = ptr[unsafe_offset=abs_idx >> 3]
+        return ((Int(byte_val) >> (abs_idx & 7)) & 1) != 0
+
+    def to_bool_series(self) raises -> BooleanSeries:
+        """Converts a Boolean ('b') Series into a BooleanSeries (nulls become False)."""
+        if self.format != "b":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Boolean ('b')"
+            )
+        var n = self.length
+        var out = List[Bool](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(False)
+            else:
+                out.append(self.get_bool(i))
+        return BooleanSeries(out^, name=self.name)
+
+    def is_date(self) -> Bool:
+        return self.format == "tdD"
+
+    def is_datetime(self) -> Bool:
+        return self.format.startswith("ts")
+
+    def is_duration(self) -> Bool:
+        return self.format.startswith("tD")
+
+    def is_temporal(self) -> Bool:
+        return self.is_date() or self.is_datetime() or self.is_duration()
+
+    def temporal_unit(self) raises -> String:
+        """Returns the temporal unit string ('d', 's', 'ms', 'us', 'ns')."""
+        if self.format == "tdD":
+            return "d"
+        elif self.format.startswith("tss"):
+            return "s"
+        elif self.format.startswith("tsm"):
+            return "ms"
+        elif self.format.startswith("tsu"):
+            return "us"
+        elif self.format.startswith("tsn"):
+            return "ns"
+        elif self.format == "tDs":
+            return "s"
+        elif self.format == "tDm":
+            return "ms"
+        elif self.format == "tDu":
+            return "us"
+        elif self.format == "tDn":
+            return "ns"
+        raise Error(
+            "Series '"
+            + self.name
+            + "' format '"
+            + self.format
+            + "' is not a supported temporal type"
+        )
+
+    def as_date32_ptr(self) raises -> Pointer[Int32, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Date32 ('tdD') Int32 buffer."""
+        if self.format != "tdD":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Date32 ('tdD')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Int32]()
+            .unsafe_offset(self.offset)
+        )
+
+    def as_timestamp_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Timestamp ('ts*') Int64 buffer."""
+        if not self.is_datetime():
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Timestamp ('ts*')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Int64]()
+            .unsafe_offset(self.offset)
+        )
+
+    def as_duration_ptr(self) raises -> Pointer[Int64, MutUntrackedOrigin]:
+        """Returns a typed pointer to the underlying Duration ('tD*') Int64 buffer."""
+        if not self.is_duration():
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Duration ('tD*')"
+            )
+        return (
+            self.buffers[unsafe_offset=1]
+            .unsafe_bitcast[Int64]()
+            .unsafe_offset(self.offset)
+        )
+
+    def get_date_days(self, idx: Int) raises -> Int32:
+        """Returns days since Unix epoch (1970-01-01) for a Date32 element."""
+        return self.as_date32_ptr()[unsafe_offset=idx]
+
+    def get_date_iso(self, idx: Int) raises -> String:
+        """Formats a Date32 element as an ISO-8601 date string ('YYYY-MM-DD' or 'null')."""
+        if self.format != "tdD":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Date32 ('tdD')"
+            )
+        if self.is_null(idx):
+            return "null"
+        return _days_to_iso_date(Int64(self.get_date_days(idx)))
+
+    def get_timestamp(self, idx: Int) raises -> Int64:
+        """Returns the raw integer timestamp ticks for a Datetime element."""
+        return self.as_timestamp_ptr()[unsafe_offset=idx]
+
+    def get_datetime_iso(self, idx: Int) raises -> String:
+        """Formats a Datetime element as an ISO-8601 datetime string (or 'null')."""
+        var unit = self.temporal_unit()
+        if not self.is_datetime():
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Datetime ('ts*')"
+            )
+        if self.is_null(idx):
+            return "null"
+        return _timestamp_to_iso(self.get_timestamp(idx), unit)
+
+    def get_duration(self, idx: Int) raises -> Int64:
+        """Returns the raw integer duration ticks for a Duration element."""
+        return self.as_duration_ptr()[unsafe_offset=idx]
+
+    def get_duration_string(self, idx: Int) raises -> String:
+        """Formats a Duration element with its time unit (e.g. '5000ms' or 'null')."""
+        var unit = self.temporal_unit()
+        if not self.is_duration():
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is format '"
+                + self.format
+                + "', not Duration ('tD*')"
+            )
+        if self.is_null(idx):
+            return "null"
+        return String(self.get_duration(idx)) + unit
+
+    def _is_int64_like(self) -> Bool:
+        return (
+            self.format == "l"
+            or self.format == "i"
+            or self.format == "tdD"
+            or self.format.startswith("ts")
+            or self.format.startswith("tD")
+        )
+
+    def _get_int64_like(self, idx: Int) raises -> Int64:
+        if self.format == "l":
+            return self.get_int64(idx)
+        elif self.format == "i":
+            return Int64(self.get_int32(idx))
+        elif self.format == "tdD":
+            return Int64(self.get_date_days(idx))
+        elif self.format.startswith("ts"):
+            return self.get_timestamp(idx)
+        elif self.format.startswith("tD"):
+            return self.get_duration(idx)
+        raise Error(
+            "Series '"
+            + self.name
+            + "' format '"
+            + self.format
+            + "' is not integer or temporal"
+        )
 
     def sum_float64(self) raises -> Float64:
         """Computes the sum of all elements using SIMD vector loads.
@@ -996,6 +1520,261 @@ struct Series(Copyable, Movable):
                 res_ptr[unsafe_offset=i] = func(self.get_float(i))
         return res^
 
+    def _cmp_scalar_float[
+        op: StaticString
+    ](self, scalar: Float64) raises -> BooleanSeries:
+        var n = self.length
+        var out = List[Bool](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(False)
+            else:
+                var v = self.get_float(i)
+                comptime if op == ">":
+                    out.append(v > scalar)
+                elif op == ">=":
+                    out.append(v >= scalar)
+                elif op == "<":
+                    out.append(v < scalar)
+                elif op == "<=":
+                    out.append(v <= scalar)
+                elif op == "==":
+                    out.append(v == scalar)
+                else:
+                    out.append(v != scalar)
+        return BooleanSeries(out^, name=self.name)
+
+    def _cmp_scalar_int[
+        op: StaticString
+    ](self, scalar: Int) raises -> BooleanSeries:
+        var n = self.length
+        var out = List[Bool](capacity=n)
+        if self._is_int64_like():
+            var s64 = Int64(scalar)
+            for i in range(n):
+                if self.is_null(i):
+                    out.append(False)
+                else:
+                    var v = self._get_int64_like(i)
+                    comptime if op == ">":
+                        out.append(v > s64)
+                    elif op == ">=":
+                        out.append(v >= s64)
+                    elif op == "<":
+                        out.append(v < s64)
+                    elif op == "<=":
+                        out.append(v <= s64)
+                    elif op == "==":
+                        out.append(v == s64)
+                    else:
+                        out.append(v != s64)
+        else:
+            var sf = Float64(scalar)
+            for i in range(n):
+                if self.is_null(i):
+                    out.append(False)
+                else:
+                    var v = self.get_float(i)
+                    comptime if op == ">":
+                        out.append(v > sf)
+                    elif op == ">=":
+                        out.append(v >= sf)
+                    elif op == "<":
+                        out.append(v < sf)
+                    elif op == "<=":
+                        out.append(v <= sf)
+                    elif op == "==":
+                        out.append(v == sf)
+                    else:
+                        out.append(v != sf)
+        return BooleanSeries(out^, name=self.name)
+
+    def _cmp_scalar_str[
+        op: StaticString
+    ](self, scalar: String) raises -> BooleanSeries:
+        if self.format != "u" and self.format != "U" and self.format != "vu":
+            raise Error(
+                "Series '"
+                + self.name
+                + "' is not a string column (format '"
+                + self.format
+                + "')"
+            )
+        var n = self.length
+        var out = List[Bool](capacity=n)
+        for i in range(n):
+            if self.is_null(i):
+                out.append(False)
+            else:
+                var v = self.get_as_string(i)
+                comptime if op == "==":
+                    out.append(v == scalar)
+                elif op == "!=":
+                    out.append(v != scalar)
+                elif op == "contains":
+                    out.append(v.find(scalar) >= 0)
+                elif op == "startswith":
+                    out.append(v.startswith(scalar))
+                else:
+                    out.append(v.endswith(scalar))
+        return BooleanSeries(out^, name=self.name)
+
+    def _cmp_series[
+        op: StaticString
+    ](self, other: Series) raises -> BooleanSeries:
+        if self.length != other.length:
+            raise Error(
+                "Series lengths do not match: "
+                + String(self.length)
+                + " vs "
+                + String(other.length)
+            )
+        var n = self.length
+        var out = List[Bool](capacity=n)
+        var both_str = (
+            (self.format == "u" or self.format == "U" or self.format == "vu")
+            and (
+                other.format == "u"
+                or other.format == "U"
+                or other.format == "vu"
+            )
+        )
+        var both_bool = self.format == "b" and other.format == "b"
+        var both_int = self._is_int64_like() and other._is_int64_like()
+
+        for i in range(n):
+            if self.is_null(i) or other.is_null(i):
+                out.append(False)
+            elif both_str:
+                var a = self.get_as_string(i)
+                var b = other.get_as_string(i)
+                comptime if op == ">":
+                    out.append(a > b)
+                elif op == ">=":
+                    out.append(a >= b)
+                elif op == "<":
+                    out.append(a < b)
+                elif op == "<=":
+                    out.append(a <= b)
+                elif op == "==":
+                    out.append(a == b)
+                else:
+                    out.append(a != b)
+            elif both_bool:
+                var a = self.get_bool(i)
+                var b = other.get_bool(i)
+                comptime if op == "==":
+                    out.append(a == b)
+                elif op == "!=":
+                    out.append(a != b)
+                else:
+                    raise Error(
+                        "Ordering comparison not supported on Boolean Series"
+                    )
+            elif both_int:
+                var a = self._get_int64_like(i)
+                var b = other._get_int64_like(i)
+                comptime if op == ">":
+                    out.append(a > b)
+                elif op == ">=":
+                    out.append(a >= b)
+                elif op == "<":
+                    out.append(a < b)
+                elif op == "<=":
+                    out.append(a <= b)
+                elif op == "==":
+                    out.append(a == b)
+                else:
+                    out.append(a != b)
+            else:
+                var a = self.get_float(i)
+                var b = other.get_float(i)
+                comptime if op == ">":
+                    out.append(a > b)
+                elif op == ">=":
+                    out.append(a >= b)
+                elif op == "<":
+                    out.append(a < b)
+                elif op == "<=":
+                    out.append(a <= b)
+                elif op == "==":
+                    out.append(a == b)
+                else:
+                    out.append(a != b)
+        return BooleanSeries(out^, name=self.name)
+
+    def __gt__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float[">",](scalar)
+
+    def __ge__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float[">="](scalar)
+
+    def __lt__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float["<"](scalar)
+
+    def __le__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float["<="](scalar)
+
+    def __eq__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float["=="](scalar)
+
+    def __ne__(self, scalar: Float64) raises -> BooleanSeries:
+        return self._cmp_scalar_float["!="](scalar)
+
+    def __gt__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int[">"](scalar)
+
+    def __ge__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int[">="](scalar)
+
+    def __lt__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int["<"](scalar)
+
+    def __le__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int["<="](scalar)
+
+    def __eq__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int["=="](scalar)
+
+    def __ne__(self, scalar: Int) raises -> BooleanSeries:
+        return self._cmp_scalar_int["!="](scalar)
+
+    def __eq__(self, scalar: String) raises -> BooleanSeries:
+        return self._cmp_scalar_str["=="](scalar)
+
+    def __ne__(self, scalar: String) raises -> BooleanSeries:
+        return self._cmp_scalar_str["!="](scalar)
+
+    def str_contains(self, substr: String) raises -> BooleanSeries:
+        """Returns a BooleanSeries checking whether each string contains substr."""
+        return self._cmp_scalar_str["contains"](substr)
+
+    def str_starts_with(self, prefix: String) raises -> BooleanSeries:
+        """Returns a BooleanSeries checking whether each string starts with prefix."""
+        return self._cmp_scalar_str["startswith"](prefix)
+
+    def str_ends_with(self, suffix: String) raises -> BooleanSeries:
+        """Returns a BooleanSeries checking whether each string ends with suffix."""
+        return self._cmp_scalar_str["endswith"](suffix)
+
+    def __gt__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series[">"](other)
+
+    def __ge__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series[">="](other)
+
+    def __lt__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series["<"](other)
+
+    def __le__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series["<="](other)
+
+    def __eq__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series["=="](other)
+
+    def __ne__(self, other: Series) raises -> BooleanSeries:
+        return self._cmp_series["!="](other)
+
 
 struct DataFrame(Movable, Writable):
     """An in-memory columnar table backed by an Apache Arrow StructArray.
@@ -1029,11 +1808,14 @@ struct DataFrame(Movable, Writable):
             self._col_formats.append(self._table.get_column_format(i))
 
     @staticmethod
-    def read_csv(path: String) raises -> DataFrame:
+    def read_csv(
+        path: String, try_parse_dates: Bool = False
+    ) raises -> DataFrame:
         """Reads a CSV file into a DataFrame using the Polars multithreaded reader.
 
         Args:
             path: Filesystem path to the CSV file.
+            try_parse_dates: Automatically parse ISO date/datetime strings when True.
 
         Returns:
             DataFrame populated with columns exported via the Arrow C Data Interface.
@@ -1043,7 +1825,10 @@ struct DataFrame(Movable, Writable):
         """
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
-        _ = MolarsBridge.read_csv(path, array_ptr, schema_ptr)
+        if try_parse_dates:
+            _ = MolarsBridge.read_csv_ex(path, True, array_ptr, schema_ptr)
+        else:
+            _ = MolarsBridge.read_csv(path, array_ptr, schema_ptr)
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
@@ -1328,11 +2113,7 @@ struct DataFrame(Movable, Writable):
         Returns:
             A new DataFrame containing only the selected columns.
         """
-        var csv_cols = String("")
-        for i in range(len(columns)):
-            csv_cols += columns[i]
-            if i + 1 < len(columns):
-                csv_cols += ","
+        var csv_cols = _join_csv(columns)
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.select_columns(
@@ -1354,11 +2135,7 @@ struct DataFrame(Movable, Writable):
         Returns:
             A new DataFrame without the specified columns.
         """
-        var csv_cols = String("")
-        for i in range(len(columns)):
-            csv_cols += columns[i]
-            if i + 1 < len(columns):
-                csv_cols += ","
+        var csv_cols = _join_csv(columns)
         var array_ptr = unsafe_alloc[ArrowArray](1)
         var schema_ptr = unsafe_alloc[ArrowSchema](1)
         _ = MolarsBridge.drop_columns(
@@ -1394,6 +2171,264 @@ struct DataFrame(Movable, Writable):
         var managed = ManagedArrowTable(array_ptr, schema_ptr)
         return DataFrame(managed^)
 
+    def filter(self, mask: List[Bool]) raises -> DataFrame:
+        """Filters DataFrame rows using a boolean mask list."""
+        var n = len(mask)
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        if n == 0:
+            try:
+                _ = MolarsBridge.filter_df(
+                    self._table.array_ptr,
+                    self._table.schema_ptr,
+                    null_ptr[UInt8](),
+                    0,
+                    array_ptr,
+                    schema_ptr,
+                )
+            except e:
+                array_ptr.unsafe_free()
+                schema_ptr.unsafe_free()
+                raise e^
+        else:
+            var mask_buf = unsafe_alloc[UInt8](n)
+            for i in range(n):
+                mask_buf[unsafe_offset=i] = UInt8(1) if mask[i] else UInt8(0)
+            try:
+                _ = MolarsBridge.filter_df(
+                    self._table.array_ptr,
+                    self._table.schema_ptr,
+                    mask_buf,
+                    n,
+                    array_ptr,
+                    schema_ptr,
+                )
+            except e:
+                mask_buf.unsafe_free()
+                array_ptr.unsafe_free()
+                schema_ptr.unsafe_free()
+                raise e^
+            mask_buf.unsafe_free()
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def filter(self, mask: BooleanSeries) raises -> DataFrame:
+        """Filters DataFrame rows using a BooleanSeries mask."""
+        return self.filter(mask.to_list())
+
+    def sort(
+        self,
+        by: String,
+        descending: Bool = False,
+        nulls_last: Bool = False,
+    ) raises -> DataFrame:
+        """Sorts the DataFrame by one or more comma-separated column names."""
+        var desc_str = "true" if descending else "false"
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.sort_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            by,
+            desc_str,
+            nulls_last,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def sort(
+        self,
+        by: List[String],
+        descending: Bool = False,
+        nulls_last: Bool = False,
+    ) raises -> DataFrame:
+        """Sorts the DataFrame by a list of columns with a shared sort direction."""
+        return self.sort(_join_csv(by), descending, nulls_last)
+
+    def sort(
+        self,
+        by: List[String],
+        descending: List[Bool],
+        nulls_last: Bool = False,
+    ) raises -> DataFrame:
+        """Sorts the DataFrame by a list of columns with per-column sort directions."""
+        var desc_strs = List[String](capacity=len(descending))
+        for i in range(len(descending)):
+            desc_strs.append("true" if descending[i] else "false")
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.sort_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            _join_csv(by),
+            _join_csv(desc_strs),
+            nulls_last,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def join(
+        self,
+        other: DataFrame,
+        on: String = "",
+        how: String = "inner",
+    ) raises -> DataFrame:
+        """Joins this DataFrame with another DataFrame on shared column name(s)."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.join_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            other._table.array_ptr,
+            other._table.schema_ptr,
+            on,
+            on,
+            how,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def join(
+        self,
+        other: DataFrame,
+        *,
+        left_on: String,
+        right_on: String,
+        how: String = "inner",
+    ) raises -> DataFrame:
+        """Joins this DataFrame with another DataFrame on distinct left/right column names."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.join_df(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            other._table.array_ptr,
+            other._table.schema_ptr,
+            left_on,
+            right_on,
+            how,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def join(
+        self,
+        other: DataFrame,
+        on: List[String],
+        how: String = "inner",
+    ) raises -> DataFrame:
+        """Joins this DataFrame with another DataFrame on a list of shared column names."""
+        var csv = _join_csv(on)
+        return self.join(other, csv, how)
+
+    def join(
+        self,
+        other: DataFrame,
+        *,
+        left_on: List[String],
+        right_on: List[String],
+        how: String = "inner",
+    ) raises -> DataFrame:
+        """Joins this DataFrame with another DataFrame on lists of left and right column names."""
+        return self.join(
+            other,
+            left_on=_join_csv(left_on),
+            right_on=_join_csv(right_on),
+            how=how,
+        )
+
+    def drop_nulls(self) raises -> DataFrame:
+        """Drops rows containing any null values across all columns."""
+        return self.drop_nulls("")
+
+    def drop_nulls(self, subset: String) raises -> DataFrame:
+        """Drops rows containing null values in the specified comma-separated columns."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.drop_nulls(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            subset,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def drop_nulls(self, subset: List[String]) raises -> DataFrame:
+        """Drops rows containing null values in the specified list of columns."""
+        return self.drop_nulls(_join_csv(subset))
+
+    def fill_null(self, column: String, value: Float64) raises -> DataFrame:
+        """Fills null values in a numeric column with a Float64 scalar."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.fill_null_float64(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            column,
+            value,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def fill_null(self, column: String, value: Int64) raises -> DataFrame:
+        """Fills null values in an integer column with an Int64 scalar."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.fill_null_int64(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            column,
+            value,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def fill_null(self, column: String, value: String) raises -> DataFrame:
+        """Fills null values in a string column with a String scalar."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.fill_null_str(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            column,
+            value,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
+    def fill_null_strategy(
+        self, strategy: String, column: String = ""
+    ) raises -> DataFrame:
+        """Fills null values using a named strategy ('forward', 'backward', 'min', 'max', 'mean', 'zero', 'one')."""
+        var array_ptr = unsafe_alloc[ArrowArray](1)
+        var schema_ptr = unsafe_alloc[ArrowSchema](1)
+        _ = MolarsBridge.fill_null_strategy(
+            self._table.array_ptr,
+            self._table.schema_ptr,
+            column,
+            strategy,
+            array_ptr,
+            schema_ptr,
+        )
+        var managed = ManagedArrowTable(array_ptr, schema_ptr)
+        return DataFrame(managed^)
+
     def group_by(self, keys: List[String]) -> GroupBy:
         """Groups the DataFrame by the specified column names.
 
@@ -1403,12 +2438,9 @@ struct DataFrame(Movable, Writable):
         Returns:
             A GroupBy object to perform aggregations.
         """
-        var keys_csv = String("")
-        for i in range(len(keys)):
-            keys_csv += keys[i]
-            if i + 1 < len(keys):
-                keys_csv += ","
-        return GroupBy(self._table.array_ptr, self._table.schema_ptr, keys_csv)
+        return GroupBy(
+            self._table.array_ptr, self._table.schema_ptr, _join_csv(keys)
+        )
 
     def group_by(self, key: String) -> GroupBy:
         """Groups the DataFrame by a single column name or comma-separated column names.
@@ -1469,6 +2501,14 @@ struct DataFrame(Movable, Writable):
                 type_name = "i64"
             elif fmt == "i":
                 type_name = "i32"
+            elif fmt == "b":
+                type_name = "bool"
+            elif fmt == "tdD":
+                type_name = "date"
+            elif fmt.startswith("ts"):
+                type_name = "datetime"
+            elif fmt.startswith("tD"):
+                type_name = "duration"
             elif fmt == "u" or fmt == "U" or fmt == "vu":
                 type_name = "str"
             writer.write(type_name)
